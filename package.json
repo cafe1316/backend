@@ -4,7 +4,10 @@
   "type": "module",
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/express": "^5.0.1"
+    "@types/express": "^5.0.1",
+    "@types/pg": "^8.11.13",
+    "drizzle-kit": "^0.31.0",
+    "tsx": "^4.19.3"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -12,6 +15,10 @@
   "dependencies": {
     "@types/cors": "^2.8.17",
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "dotenv": "^16.5.0",
+    "drizzle-orm": "^0.42.0",
+    "pg": "^8.14.1"
   }
+
 }
