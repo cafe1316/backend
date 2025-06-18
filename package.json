@@ -1,11 +1,16 @@
 {
   "name": "backend",
-  "module": "index.ts",
+  "module": "src/index.ts",
   "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/express": "^5.0.1",
-    "@types/pg": "^8.11.11"
+    "@types/pg": "^8.11.12",
+    "drizzle-kit": "^0.30.6",
+    "tsx": "^4.19.3"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -13,7 +18,8 @@
   "dependencies": {
     "@types/cors": "^2.8.17",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.5.0",
+    "drizzle-orm": "^0.44.2",
     "express": "^4.21.2",
     "pg": "^8.14.1"
   }
