@@ -38,11 +38,12 @@ export async function searchProducts({
     */
     const filterConditions: SQL[]= [];
 
-    
+    // name is like
     if (name) {
         filterConditions.push(like(cafe1316Products.productName, `%${name}%`));
     }
 
+    // bake [中浅烘焙、深烘焙]
     if (baked) {
         filterConditions.push(eq(cafe1316Products.roasting, baked));
     }
@@ -95,6 +96,7 @@ export async function searchProducts({
     .orderBy(sort === "desc" ? desc(cafe1316Products.originalPrice) : asc(cafe1316Products.originalPrice))
     .limit(num)
     .offset(offset);
+    
     return {
         currentPage: page,
         perPage: num,
