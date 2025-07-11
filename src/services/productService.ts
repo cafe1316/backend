@@ -23,7 +23,7 @@ export async function searchProducts({
 }:{
     name?: string;
     baked?: string;
-    priceFrom?:string;
+    priceFrom?: string;
     priceTo?: string;
     sort?: "asc" | "desc";
     page?: number;

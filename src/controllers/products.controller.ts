@@ -9,12 +9,8 @@ export const getPopularProductsController = async (req: Request, res: Response) 
 export const searchProductsController = async (req: Request, res: Response) => {
     const name = req.query.name as string;
     const baked = req.query.baked as string;
-    const priceFrom = req.query.priceFrom ? 
-        parseFloat(Array.isArray(req.query.priceFrom) ? req.query.priceFrom[0]?.toString() : req.query.priceFrom.toString()) : 
-        undefined;
-    const priceTo = req.query.priceTo ? 
-        parseFloat(Array.isArray(req.query.priceTo) ? req.query.priceTo[0]?.toString() : req.query.priceTo.toString()) : 
-        undefined;
+    const priceFrom = req.query.priceFrom as string;
+    const priceTo = req.query.priceTo as string;
     const sort = (req.query.sort as "asc" | "desc") || "asc";
     const page = parseInt(req.query.page as string) || 1;
     const num = parseInt(req.query.num as string) || 20;

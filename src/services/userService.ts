@@ -1,7 +1,6 @@
 import db from "../db";
 import { cafe1316Users } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
-import { hash } from "bun";
 
 interface RegisterForm {
   username: string;
@@ -37,11 +36,5 @@ export const registerNewUser = async (params: RegisterForm) => {
     username, password, email
   })
   // TODO: password needs hashing
-  const bcrypt = require('bcrypt');
-  const hashPassword = 'password';
-  const saltRounds = 10;
-  bcrypt.hash(hashPassword, saltRounds, (err,hash)) => {
-    if(err)
-  }
   // TODO: jwt token
 };

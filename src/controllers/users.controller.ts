@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { registerNewUser } from "../services/userService";
+import { registerNewUser } from "../services/userService1";
 
 export const registerNewUserController = async (req: Request, res: Response) => {
     const body = req.body;
