@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { registerNewUser } from "../services/userService1";
+import { registerNewUser } from "../services/userService";
 
 export const registerNewUserController = async (req: Request, res: Response) => {
     const body = req.body;
@@ -13,5 +13,9 @@ export const registerNewUserController = async (req: Request, res: Response) => 
         return;
     }
     res.json({status: 200, data: "OK"})
+}
+
+export const loginController = async (req:Request, res: Response)
+=>{
     
 }

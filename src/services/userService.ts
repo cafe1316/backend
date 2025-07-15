@@ -1,6 +1,9 @@
 import db from "../db";
 import { cafe1316Users } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+const secret: string = process.env.JWT_SECRECT || "";
 
 interface RegisterForm {
   username: string;
@@ -9,7 +12,12 @@ interface RegisterForm {
   email: string;
 }
 
-export const registerNewUser = async (params: RegisterForm) => {
+interface LoginForm {
+  username: string;
+  password: string;
+}
+
+export const registerNewUser = async (params: RegisterForm):Promise<string> => {
   if (
     !params.username ||
     !params.email ||
@@ -31,10 +39,30 @@ export const registerNewUser = async (params: RegisterForm) => {
   if (res.length > 0) {
     throw new Error("user already exists!")
   }
+
+  // password needs hashing
+  const hashedPassword = await bcrypt.hash(password, 10);
+
   // create a new user
   const registerResult = await db.insert(cafe1316Users).values({
-    username, password, email
+    username, 
+    password: hashedPassword, 
+    email
   })
-  // TODO: password needs hashing
+  
   // TODO: jwt token
+  const token = jwt.sign(
+    { userId: username, email: email },  // payload
+    secret,
+    { expiresIn: '1h' }                     // 可选：token 有效期
+  );
+  return token;
+
+};
+
+export const login = async (params: LoginForm):Promise<any> => {
+  if (!params.username || !params.password){
+    throw new Error ("username and password are required.");
+  }
+
 };
