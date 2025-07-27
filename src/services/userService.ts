@@ -3,7 +3,12 @@ import { cafe1316Users } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import {v4 as uuidv4} from 'uuid';
+
 const secret: string = process.env.JWT_SECRECT || "";
+
+const id = uuidv4();
+console.log(id);
 
 interface RegisterForm {
   username: string;
@@ -42,9 +47,11 @@ export const registerNewUser = async (params: RegisterForm):Promise<string> => {
 
   // password needs hashing
   const hashedPassword = await bcrypt.hash(password, 10);
+  const generatedUuid = uuidv4();
 
   // create a new user
   const registerResult = await db.insert(cafe1316Users).values({
+    uuid: generatedUuid,
     username, 
     password: hashedPassword, 
     email
@@ -52,7 +59,7 @@ export const registerNewUser = async (params: RegisterForm):Promise<string> => {
   
   // TODO: jwt token
   const token = jwt.sign(
-    { userId: username, email: email },  // payload
+    { userId: generatedUuid, email: email },  // payload
     secret,
     { expiresIn: '1h' }                     // 可选：token 有效期
   );

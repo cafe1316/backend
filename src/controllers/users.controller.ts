@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { login, registerNewUser } from "../services/userService";
 
+
 export const registerNewUserController = async (req: Request, res: Response) => {
     const body = req.body;
     // body is an object with key & value
