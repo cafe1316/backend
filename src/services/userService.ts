@@ -65,4 +65,21 @@ export const login = async (params: LoginForm):Promise<any> => {
     throw new Error ("username and password are required.");
   }
 
+  const {username, password} = params;
+  const res = await db.select().from(cafe1316Users).where(eq(cafe1316Users.username, username))
+  if (res.length == 0) {
+    throw new Error("user does not exist.");
+  }
+
+  let userinfo = res[0];
+  if(!bcrypt.compare(password,userinfo.password)) {
+    throw new Error("username and password not match.");
+  }
+  //sign jwt
+  const token = jwt.sign(
+    { userId: username, email: userinfo.email },  // payload
+    secret,
+    { expiresIn: '1h' }                     // 可选：token 有效期
+  );
+  return token;
 };
