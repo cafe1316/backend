@@ -6,8 +6,10 @@
     "dev": "tsx watch src/index.ts"
   },
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
     "@types/bun": "latest",
     "@types/express": "^5.0.1",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.11.12",
     "drizzle-kit": "^0.30.6",
     "tsx": "^4.19.3"
@@ -17,10 +19,13 @@
   },
   "dependencies": {
     "@types/cors": "^2.8.17",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.44.2",
     "express": "^4.21.2",
-    "pg": "^8.14.1"
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.14.1",
+    "uuid": "^11.1.0"
   }
 }
