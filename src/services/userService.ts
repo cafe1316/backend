@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import {v4 as uuidv4} from 'uuid';
 
-const secret: string = process.env.JWT_SECRECT || "";
+const secret: string = process.env.JWT_SECRET || "";
 
 const id = uuidv4();
 console.log(id);

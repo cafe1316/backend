@@ -1,26 +1,26 @@
 import { relations } from "drizzle-orm/relations";
-import { cafe1316Users, cafe1316ShoppingCarts, cafe1316Products, cafe1316UserAddresses, cafe1316ProductCategories, cafe1316ProductImages, cafe1316Sessions, cafe1316UserProfiles } from "./schema";
+import { cafe1316Users, cafe1316Cart, cafe1316Products, cafe1316UserAddresses, cafe1316ProductCategories, cafe1316ProductImages, cafe1316Sessions, cafe1316UserProfiles } from "./schema";
 
-export const cafe1316ShoppingCartsRelations = relations(cafe1316ShoppingCarts, ({one}) => ({
+export const cafe1316CartsRelations = relations(cafe1316Cart, ({one}) => ({
 	cafe1316User: one(cafe1316Users, {
-		fields: [cafe1316ShoppingCarts.userId],
+		fields: [cafe1316Cart.userId],
 		references: [cafe1316Users.id]
 	}),
 	cafe1316Product: one(cafe1316Products, {
-		fields: [cafe1316ShoppingCarts.productId],
+		fields: [cafe1316Cart.productId],
 		references: [cafe1316Products.id]
 	}),
 }));
 
 export const cafe1316UsersRelations = relations(cafe1316Users, ({many}) => ({
-	cafe1316ShoppingCarts: many(cafe1316ShoppingCarts),
+	cafe1316Carts: many(cafe1316Cart),
 	cafe1316UserAddresses: many(cafe1316UserAddresses),
 	cafe1316Sessions: many(cafe1316Sessions),
 	cafe1316UserProfiles: many(cafe1316UserProfiles),
 }));
 
 export const cafe1316ProductsRelations = relations(cafe1316Products, ({one, many}) => ({
-	cafe1316ShoppingCarts: many(cafe1316ShoppingCarts),
+	cafe1316Carts: many(cafe1316Cart),
 	cafe1316ProductCategory: one(cafe1316ProductCategories, {
 		fields: [cafe1316Products.categoryId],
 		references: [cafe1316ProductCategories.id]
