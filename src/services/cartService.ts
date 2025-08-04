@@ -1,5 +1,5 @@
 import db from "../db";
-import { cafe1316Cart } from "../../drizzle/schema";
+import { cafe1316Cart, cafe1316Products } from "../../drizzle/schema";
 import { and,eq } from "drizzle-orm";
 
 interface addCartProductParams{
@@ -7,6 +7,7 @@ interface addCartProductParams{
     productId: string;
     amount: number;
 }
+
 export const addCartProduct = async ({userId, productId, amount}: addCartProductParams): Promise<void> => {
     if(!userId || !productId || !amount){
         throw new Error("userId, productId, and amount are required");
@@ -29,4 +30,31 @@ export const addCartProduct = async ({userId, productId, amount}: addCartProduct
             updatedAt: new Date().toISOString(),
         });
     }
+}
+
+export const getCartItems = async (userId: string) => {
+    const items = await db.select({
+        cardId: cafe1316Cart.id,
+        productId: cafe1316Products.uuid,
+        amount: cafe1316Cart.amount,
+        productName: cafe1316Products.productName,
+        sku: cafe1316Products.sku,
+        origin: cafe1316Products.origin,
+        description: cafe1316Products.description,
+        roasting: cafe1316Products.roasting,
+        material: cafe1316Products.material,
+        brand: cafe1316Products.brand,
+        originalPrice: cafe1316Products.originalPrice,
+        discountedPrice: cafe1316Products.discountedPrice,
+        unit: cafe1316Products.unit,
+        productType: cafe1316Products.productType,
+        imageUrl: cafe1316Products.imageUrl,
+        color: cafe1316Products.color,
+        size: cafe1316Products.size,
+        weight: cafe1316Products.weight,
+        specifications: cafe1316Products.specifications,
+    }).from(cafe1316Cart).where(eq(cafe1316Cart.userId, userId))
+    .innerJoin(cafe1316Products, eq(cafe1316Cart.productId, cafe1316Products.uuid));
+
+    return items;
 }

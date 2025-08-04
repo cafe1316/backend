@@ -2,6 +2,7 @@
 import { Router } from "express";
 import { getPopularProductsController, getProductByIDController, searchProductsController } from "../controllers/products.controller";
 import { loginController, registerNewUserController } from "../controllers/users.controller";
+import {addCartController, getCartController} from "../controllers/cart.controller";
 import  {authMiddleware}  from "../middleware/auth";
 
 
@@ -17,7 +18,9 @@ router.post("/v1/user", registerNewUserController);
 
 router.post("/v1/user/login", loginController);
 
-router.post("/v1/cart/", authMiddleware , addCartController);
+router.post("/v1/cart/", authMiddleware, addCartController);
+
+router.get("/v1/cart/", authMiddleware, getCartController);
 
 
 

@@ -1,5 +1,5 @@
 import type{Request, Response} from "express"
-import { addCartProduct } from "../services/cartService";
+import { addCartProduct, getCartItems } from "../services/cartService";
 
 export const addCartController = async (req: Request, res: Response) => {
     try{
@@ -11,7 +11,8 @@ export const addCartController = async (req: Request, res: Response) => {
 
         const user = req.user;
         if (!user?.userId) {
-        return res.status(401).json({ status: 401, msg: "Unauthorized: missing user token" });
+            res.status(401).json({ status: 401, msg: "Unauthorized: missing user token" });
+            return;
         }
 
         await addCartProduct({
@@ -19,7 +20,28 @@ export const addCartController = async (req: Request, res: Response) => {
             productId,
             amount,
         });
+        res.status(200).json({ status: 200, msg: "Product added to cart successfully" });
+        return;
+        
     }catch(error: any){
-        return res.status(500).json({ status: 500, msg: error.message });
+        res.status(500).json({ status: 500, msg: error.message });
+        return;
+    }
+}
+
+export const getCartController = async (req: Request, res: Response) => {
+    try {
+        const user = req.user;
+        if (!user?.userId) {
+            res.status(401).json({status:401, msg:"Unauthorized: missing user token"});
+            return;
+        }
+
+        const cartItems = await getCartItems(user.userId);
+        res.status(200).json({status:200, data:cartItems});
+        return;
+    }catch (error:any) {
+        res.status(500).json({ status: 500, msg: error.message });
+        return;
     }
 }
