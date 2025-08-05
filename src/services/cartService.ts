@@ -1,5 +1,5 @@
 import db from "../db";
-import { cafe1316Cart, cafe1316Products } from "../../drizzle/schema";
+import { cafe1316Cart, cafe1316Products, cafe1316Users } from "../../drizzle/schema";
 import { and,eq } from "drizzle-orm";
 
 interface addCartProductParams{
@@ -57,4 +57,26 @@ export const getCartItems = async (userId: string) => {
     .innerJoin(cafe1316Products, eq(cafe1316Cart.productId, cafe1316Products.uuid));
 
     return items;
+}
+
+export const updateCartItem = async(cartItemId:number, userId: string, amount:number) => {
+    const existing = await db.select().from(cafe1316Cart).where(and(eq(cafe1316Cart.id, cartItemId), eq(cafe1316Cart.userId, userId)))
+
+    if( existing.length === 0){
+        throw new Error("Unauthorized or cart item not found."); 
+    }
+
+    await db.update(cafe1316Cart)
+    .set({amount, updatedAt: new Date().toISOString(),})
+    .where(eq(cafe1316Cart.id, cartItemId));
+}
+
+export const deleteCartItem = async(cartItemId: number, userId: string) => {
+    const existing = await db.select().from(cafe1316Cart).where(and(eq(cafe1316Cart.id, cartItemId), eq(cafe1316Cart.userId, userId)))
+
+    if (existing.length === 0){
+        throw new Error("Unauthorized or cart item not found.");
+    }
+
+    await db.delete(cafe1316Cart).where(eq(cafe1316Cart.id, cartItemId));
 }
