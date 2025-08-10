@@ -110,11 +110,12 @@ export const cafe1316ProductImages = pgTable("cafe1316_product_images", {
 export const cafe1316Users = pgTable("cafe1316_users", {
 	id: serial().primaryKey().notNull(),
 	uuid: uuid().notNull(),
-	username: varchar({ length: 50 }).notNull(),
-	password: varchar({ length: 255 }).notNull(),
+	username: varchar({ length: 50 }),
+	password: varchar({ length: 255 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	email: varchar({ length: 100 }).default('').notNull(),
+	isSocialLogin: boolean("is_social_login").notNull().default(false),
 }, (table) => [
 	unique("cafe1316_users_uuid_key").on(table.uuid),
 	unique("cafe1316_users_username_key").on(table.username),

@@ -4,11 +4,10 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import {v4 as uuidv4} from 'uuid';
+import { firebaseAdmin } from "../bootstrap/firebaseAdmin";
 
 const secret: string = process.env.JWT_SECRET || "";
 
-const id = uuidv4();
-console.log(id);
 
 interface RegisterForm {
   username: string;
@@ -57,7 +56,6 @@ export const registerNewUser = async (params: RegisterForm):Promise<string> => {
     email
   })
   
-  // TODO: jwt token
   const token = jwt.sign(
     { userId: generatedUuid, email: email },  // payload
     secret,
@@ -79,9 +77,16 @@ export const login = async (params: LoginForm):Promise<any> => {
   }
 
   let userinfo = res[0];
-  if(!bcrypt.compare(password,userinfo.password)) {
+  if (!userinfo.password) {
+    throw new Error("this account has no local password. please sign in with google or set a password first.");
+  }
+
+  // bcrypt.compare 需要 await
+  const ok = await bcrypt.compare(password, userinfo.password);
+  if (!ok) {
     throw new Error("username and password not match.");
   }
+  
   //sign jwt
   const token = jwt.sign(
     { userId: username, email: userinfo.email },  // payload
@@ -90,3 +95,67 @@ export const login = async (params: LoginForm):Promise<any> => {
   );
   return token;
 };
+
+type LoginResult = {
+  token: string;
+  user: { uuid: string; username: string | null; email: string; isSocialLogin: boolean };
+};
+
+export const googleLogin = async (idToken: string) => {
+  if (!idToken){
+    throw new Error("missing google id token");
+  }
+
+  const decoded = await firebaseAdmin.auth().verifyIdToken(idToken).catch(()=>null);
+  if (!decoded){
+    throw new Error("Invalid google id token");
+  }
+
+  const email = decoded.email as string;
+  const emailVerified = !!decoded.email_verified;
+
+  if(!email){
+    throw new Error("google account has no email");
+  }
+
+  if(!emailVerified){
+    throw new Error("please verify your google email before login");
+  }
+
+  const existing = await db.select().from(cafe1316Users).where(eq(cafe1316Users.email, email));
+  let user = existing[0];
+
+  if(!user){
+    const generatedUuid = uuidv4();
+    const inserted = await db.insert(cafe1316Users).values({
+      uuid: generatedUuid,
+      username: null,          // 先为空：Google 登录不依赖 username
+      password: null,          // 无本地密码
+      email: email,
+      isSocialLogin: true,
+    }).returning();
+
+    user = inserted[0];
+  }else if (!user.isSocialLogin){
+    await db.update(cafe1316Users).set({isSocialLogin: true}).where(eq(cafe1316Users.id, user.id));
+
+    const refreshed = await db.select().from(cafe1316Users).where(eq(cafe1316Users.email, email));
+    user = refreshed[0];
+  }
+
+  const token = jwt.sign(
+    { userId: user.uuid, email: user.email },
+    secret,
+    { expiresIn: "1h" }
+  );
+
+  return {
+    token,
+    user: {
+      uuid: user.uuid,
+      username: user.username,       // 可能为 null（首登时）
+      email: user.email,
+      isSocialLogin: true,
+    },
+  };
+}

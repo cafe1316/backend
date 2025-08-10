@@ -1,7 +1,7 @@
 // src/routes/index.ts
 import { Router } from "express";
 import { getPopularProductsController, getProductByIDController, searchProductsController } from "../controllers/products.controller";
-import { loginController, registerNewUserController } from "../controllers/users.controller";
+import { loginController, registerNewUserController, googleLoginController } from "../controllers/users.controller";
 import {addCartController, getCartController, updateCartController, deleteCartController} from "../controllers/cart.controller";
 import  {authMiddleware}  from "../middleware/auth";
 
@@ -17,6 +17,8 @@ router.get("/v1/products/:id", getProductByIDController);
 router.post("/v1/user", registerNewUserController);
 
 router.post("/v1/user/login", loginController);
+
+router.post("v1/user/google", googleLoginController)
 
 router.post("/v1/cart/", authMiddleware, addCartController);
 
