@@ -7,40 +7,45 @@ import {v4 as uuidv4} from 'uuid';
 import { firebaseAdmin } from "../bootstrap/firebaseAdmin";
 
 const secret: string = process.env.JWT_SECRET || "";
+if (!secret) {
+  throw new Error("JWT_SECRET is not set");
+}
 
+const normEmail = (s: string) => s.trim().toLowerCase();
 
 interface RegisterForm {
-  username: string;
+  email: string;
+  username?: string;
   password: string;
   confirmPassword: string;
-  email: string;
 }
 
 interface LoginForm {
-  username: string;
+  email: string;
   password: string;
 }
 
 export const registerNewUser = async (params: RegisterForm):Promise<string> => {
   if (
-    !params.username ||
     !params.email ||
     !params.password ||
     !params.confirmPassword
   ) {
     // res.json({status: 400, msg: "username or email or password or confirmPassword parameter is missing"})
     throw new Error(
-      "username or email or password or confirmPassword parameter is missing"
+      "email or password or confirmPassword parameter is missing"
     );
   }
   // check if password matches with confirmPassword
-  const { username, email, password, confirmPassword } = params;
+  const email = normEmail(params.email);
+  const { password, confirmPassword } = params;
+
   if (password !== confirmPassword) {
     throw new Error("password does not match!")
   }
   // check if this user already exists
-  const res = await db.select().from(cafe1316Users).where(eq(cafe1316Users.username, username))
-  if (res.length > 0) {
+  const existed = await db.select().from(cafe1316Users).where(eq(cafe1316Users.email, email))
+  if (existed.length > 0) {
     throw new Error("user already exists!")
   }
 
@@ -51,9 +56,10 @@ export const registerNewUser = async (params: RegisterForm):Promise<string> => {
   // create a new user
   const registerResult = await db.insert(cafe1316Users).values({
     uuid: generatedUuid,
-    username, 
+    username: params.username ?? null, 
     password: hashedPassword, 
-    email
+    email,
+    isSocialLogin: false,
   })
   
   const token = jwt.sign(
@@ -66,17 +72,19 @@ export const registerNewUser = async (params: RegisterForm):Promise<string> => {
 };
 
 export const login = async (params: LoginForm):Promise<any> => {
-  if (!params.username || !params.password){
-    throw new Error ("username and password are required.");
+  if (!params.email || !params.password){
+    throw new Error ("email and password are required.");
   }
 
-  const {username, password} = params;
-  const res = await db.select().from(cafe1316Users).where(eq(cafe1316Users.username, username))
+  const email = normEmail(params.email);
+  const { password } = params;
+
+  const res = await db.select().from(cafe1316Users).where(eq(cafe1316Users.email, email))
   if (res.length == 0) {
     throw new Error("user does not exist.");
   }
 
-  let userinfo = res[0];
+  const userinfo = res[0];
   if (!userinfo.password) {
     throw new Error("this account has no local password. please sign in with google or set a password first.");
   }
@@ -84,12 +92,12 @@ export const login = async (params: LoginForm):Promise<any> => {
   // bcrypt.compare 需要 await
   const ok = await bcrypt.compare(password, userinfo.password);
   if (!ok) {
-    throw new Error("username and password not match.");
+    throw new Error("email and password not match.");
   }
   
   //sign jwt
   const token = jwt.sign(
-    { userId: username, email: userinfo.email },  // payload
+    { userId: userinfo.uuid, email: userinfo.email },  // payload
     secret,
     { expiresIn: '1h' }                     // 可选：token 有效期
   );
@@ -101,7 +109,7 @@ type LoginResult = {
   user: { uuid: string; username: string | null; email: string; isSocialLogin: boolean };
 };
 
-export const googleLogin = async (idToken: string) => {
+export const googleLogin = async (idToken: string): Promise<LoginResult> => {
   if (!idToken){
     throw new Error("missing google id token");
   }
@@ -111,16 +119,18 @@ export const googleLogin = async (idToken: string) => {
     throw new Error("Invalid google id token");
   }
 
-  const email = decoded.email as string;
+  const rawEmail = decoded.email as string | undefined;
   const emailVerified = !!decoded.email_verified;
 
-  if(!email){
+  if(!rawEmail){
     throw new Error("google account has no email");
   }
 
   if(!emailVerified){
     throw new Error("please verify your google email before login");
   }
+
+  const email = normEmail(rawEmail);
 
   const existing = await db.select().from(cafe1316Users).where(eq(cafe1316Users.email, email));
   let user = existing[0];
@@ -134,10 +144,10 @@ export const googleLogin = async (idToken: string) => {
       email: email,
       isSocialLogin: true,
     }).returning();
-
     user = inserted[0];
+    
   }else if (!user.isSocialLogin){
-    await db.update(cafe1316Users).set({isSocialLogin: true}).where(eq(cafe1316Users.id, user.id));
+    await db.update(cafe1316Users).set({isSocialLogin: true}).where(eq(cafe1316Users.uuid, user.uuid));
 
     const refreshed = await db.select().from(cafe1316Users).where(eq(cafe1316Users.email, email));
     user = refreshed[0];

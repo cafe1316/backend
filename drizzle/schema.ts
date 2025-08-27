@@ -114,11 +114,11 @@ export const cafe1316Users = pgTable("cafe1316_users", {
 	password: varchar({ length: 255 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	email: varchar({ length: 100 }).default('').notNull(),
+	email: varchar("email", { length: 255 }).notNull(),
 	isSocialLogin: boolean("is_social_login").notNull().default(false),
 }, (table) => [
 	unique("cafe1316_users_uuid_key").on(table.uuid),
-	unique("cafe1316_users_username_key").on(table.username),
+	unique("cafe1316_users_email_key").on(table.email),
 ]);
 
 export const cafe1316Sessions = pgTable("cafe1316_sessions", {
