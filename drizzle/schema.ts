@@ -3,23 +3,23 @@ import { sql } from "drizzle-orm"
 
 
 
-export const cafe1316ShoppingCarts = pgTable("cafe1316_shopping_carts", {
+export const cafe1316Cart = pgTable("cafe_1316_cart", {
 	id: serial().primaryKey().notNull(),
-	userId: integer("user_id"),
-	productId: integer("product_id"),
-	quantity: integer().default(1),
+	userId: uuid("user_id").notNull(),
+	productId: uuid("product_id").notNull(),
+	amount: integer().notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	foreignKey({
 			columns: [table.userId],
-			foreignColumns: [cafe1316Users.id],
-			name: "cafe1316_shopping_carts_user_id_fkey"
+			foreignColumns: [cafe1316Users.uuid],
+			name: "cafe_1316_cart_user_id_fkey"
 		}).onDelete("cascade"),
 	foreignKey({
 			columns: [table.productId],
-			foreignColumns: [cafe1316Products.id],
-			name: "cafe1316_shopping_carts_product_id_fkey"
+			foreignColumns: [cafe1316Products.uuid],
+			name: "cafe_1316_cart_product_id_fkey"
 		}).onDelete("cascade"),
 ]);
 
@@ -59,7 +59,8 @@ export const cafe1316ProductCategories = pgTable("cafe1316_product_categories", 
 ]);
 
 export const cafe1316Products = pgTable("cafe1316_products", {
-	id: serial().primaryKey().notNull(),
+	id: serial("id").primaryKey().notNull(),
+	uuid: uuid("uuid").notNull().default(sql`gen_random_uuid()`),
 	sku: varchar({ length: 50 }).notNull(),
 	productName: varchar("product_name", { length: 255 }).notNull(),
 	origin: varchar({ length: 100 }),
@@ -88,6 +89,7 @@ export const cafe1316Products = pgTable("cafe1316_products", {
 			name: "cafe1316_products_category_id_fkey"
 		}),
 	unique("cafe1316_products_sku_key").on(table.sku),
+	unique("cafe1316_products_uuid_key").on(table.uuid),
 ]);
 
 export const cafe1316ProductImages = pgTable("cafe1316_product_images", {
@@ -108,14 +110,15 @@ export const cafe1316ProductImages = pgTable("cafe1316_product_images", {
 export const cafe1316Users = pgTable("cafe1316_users", {
 	id: serial().primaryKey().notNull(),
 	uuid: uuid().notNull(),
-	username: varchar({ length: 50 }).notNull(),
-	password: varchar({ length: 255 }).notNull(),
+	username: varchar({ length: 50 }),
+	password: varchar({ length: 255 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	email: varchar({ length: 100 }).default('').notNull(),
+	email: varchar("email", { length: 255 }).notNull(),
+	isSocialLogin: boolean("is_social_login").notNull().default(false),
 }, (table) => [
 	unique("cafe1316_users_uuid_key").on(table.uuid),
-	unique("cafe1316_users_username_key").on(table.username),
+	unique("cafe1316_users_email_key").on(table.email),
 ]);
 
 export const cafe1316Sessions = pgTable("cafe1316_sessions", {
