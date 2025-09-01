@@ -1,25 +1,66 @@
-import { pgTable, foreignKey, serial, integer, timestamp, varchar, boolean, unique, text, numeric, uuid } from "drizzle-orm/pg-core"
+import { pgTable, foreignKey, serial, varchar, integer, timestamp, unique, uuid, boolean, text, numeric } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
 
-export const cafe1316Cart = pgTable("cafe_1316_cart", {
+export const cafe1316ProductCategories = pgTable("cafe1316_product_categories", {
 	id: serial().primaryKey().notNull(),
-	userId: uuid("user_id").notNull(),
-	productId: uuid("product_id").notNull(),
-	amount: integer().notNull(),
+	name: varchar({ length: 100 }).notNull(),
+	parentId: integer("parent_id"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	foreignKey({
+			columns: [table.parentId],
+			foreignColumns: [table.id],
+			name: "cafe1316_product_categories_parent_id_fkey"
+		}),
+]);
+
+export const cafe1316Users = pgTable("cafe1316_users", {
+	id: serial().primaryKey().notNull(),
+	username: varchar({ length: 50 }),
+	password: varchar({ length: 255 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	email: varchar({ length: 255 }).notNull(),
+	uuid: uuid().notNull(),
+	isSocialLogin: boolean("is_social_login").default(false).notNull(),
+}, (table) => [
+	unique("cafe1316_users_uuid_key").on(table.uuid),
+]);
+
+export const cafe1316ProductImages = pgTable("cafe1316_product_images", {
+	id: serial().primaryKey().notNull(),
+	productId: integer("product_id"),
+	imageUrl: text("image_url").notNull(),
+	isPrimary: boolean("is_primary").default(false),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	foreignKey({
+			columns: [table.productId],
+			foreignColumns: [cafe1316Products.id],
+			name: "cafe1316_product_images_product_id_fkey"
+		}).onDelete("cascade"),
+]);
+
+export const cafe1316UserProfiles = pgTable("cafe1316_user_profiles", {
+	id: serial().primaryKey().notNull(),
+	userId: integer("user_id"),
+	fullName: varchar("full_name", { length: 100 }),
+	phone: varchar({ length: 20 }),
+	avatarUrl: varchar("avatar_url", { length: 255 }),
+	gender: varchar({ length: 10 }),
+	birthDate: timestamp("birth_date", { mode: 'string' }),
+	bio: text(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	foreignKey({
 			columns: [table.userId],
-			foreignColumns: [cafe1316Users.uuid],
-			name: "cafe_1316_cart_user_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.productId],
-			foreignColumns: [cafe1316Products.uuid],
-			name: "cafe_1316_cart_product_id_fkey"
+			foreignColumns: [cafe1316Users.id],
+			name: "cafe1316_user_profiles_user_id_fkey"
 		}).onDelete("cascade"),
 ]);
 
@@ -44,23 +85,8 @@ export const cafe1316UserAddresses = pgTable("cafe1316_user_addresses", {
 		}).onDelete("cascade"),
 ]);
 
-export const cafe1316ProductCategories = pgTable("cafe1316_product_categories", {
-	id: serial().primaryKey().notNull(),
-	name: varchar({ length: 100 }).notNull(),
-	parentId: integer("parent_id"),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	foreignKey({
-			columns: [table.parentId],
-			foreignColumns: [table.id],
-			name: "cafe1316_product_categories_parent_id_fkey"
-		}),
-]);
-
 export const cafe1316Products = pgTable("cafe1316_products", {
-	id: serial("id").primaryKey().notNull(),
-	uuid: uuid("uuid").notNull().default(sql`gen_random_uuid()`),
+	id: serial().primaryKey().notNull(),
 	sku: varchar({ length: 50 }).notNull(),
 	productName: varchar("product_name", { length: 255 }).notNull(),
 	origin: varchar({ length: 100 }),
@@ -82,6 +108,7 @@ export const cafe1316Products = pgTable("cafe1316_products", {
 	size: varchar({ length: 50 }),
 	weight: numeric({ precision: 10, scale:  2 }),
 	specifications: text(),
+	uuid: uuid().defaultRandom().notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.categoryId],
@@ -89,36 +116,6 @@ export const cafe1316Products = pgTable("cafe1316_products", {
 			name: "cafe1316_products_category_id_fkey"
 		}),
 	unique("cafe1316_products_sku_key").on(table.sku),
-	unique("cafe1316_products_uuid_key").on(table.uuid),
-]);
-
-export const cafe1316ProductImages = pgTable("cafe1316_product_images", {
-	id: serial().primaryKey().notNull(),
-	productId: integer("product_id"),
-	imageUrl: text("image_url").notNull(),
-	isPrimary: boolean("is_primary").default(false),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	foreignKey({
-			columns: [table.productId],
-			foreignColumns: [cafe1316Products.id],
-			name: "cafe1316_product_images_product_id_fkey"
-		}).onDelete("cascade"),
-]);
-
-export const cafe1316Users = pgTable("cafe1316_users", {
-	id: serial().primaryKey().notNull(),
-	uuid: uuid().notNull(),
-	username: varchar({ length: 50 }),
-	password: varchar({ length: 255 }),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	email: varchar("email", { length: 255 }).notNull(),
-	isSocialLogin: boolean("is_social_login").notNull().default(false),
-}, (table) => [
-	unique("cafe1316_users_uuid_key").on(table.uuid),
-	unique("cafe1316_users_email_key").on(table.email),
 ]);
 
 export const cafe1316Sessions = pgTable("cafe1316_sessions", {
@@ -135,21 +132,11 @@ export const cafe1316Sessions = pgTable("cafe1316_sessions", {
 		}).onDelete("cascade"),
 ]);
 
-export const cafe1316UserProfiles = pgTable("cafe1316_user_profiles", {
+export const cafe1316Cart = pgTable("cafe_1316_cart", {
 	id: serial().primaryKey().notNull(),
 	userId: integer("user_id"),
-	fullName: varchar("full_name", { length: 100 }),
-	phone: varchar({ length: 20 }),
-	avatarUrl: varchar("avatar_url", { length: 255 }),
-	gender: varchar({ length: 10 }),
-	birthDate: timestamp("birth_date", { mode: 'string' }),
-	bio: text(),
+	productId: integer("product_id").notNull(),
+	amount: integer().notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [cafe1316Users.id],
-			name: "cafe1316_user_profiles_user_id_fkey"
-		}).onDelete("cascade"),
-]);
+});

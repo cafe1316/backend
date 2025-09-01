@@ -11,11 +11,11 @@ export const authMiddleware = async (req: Request, res: Response, next:NextFunct
     }
     const token = authHeader.split(" ")[1];
     try{
-        const decoded = jwt.verify(token, secret) as { userId: string; email?: string };
-        req.user = {
-        userId: decoded.userId,
-        email: decoded.email,
-        };
+        jwt.verify(token, secret) as { userId: string; email?: string };
+        // req.user = {
+        // userId: decoded.userId,
+        // email: decoded.email,
+        // };
         next();
     }catch(error){
         res.status(403).json({ message: "Unauthorized: Invalid or expired token" });

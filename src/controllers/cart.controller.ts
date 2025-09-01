@@ -1,5 +1,8 @@
 import type{Request, Response} from "express"
 import { addCartProduct, getCartItems, updateCartItem, deleteCartItem } from "../services/cartService";
+import jwt from "jsonwebtoken";
+
+const secret: string = process.env.JWT_SECRET || "";
 
 export const addCartController = async (req: Request, res: Response) => {
     try{
@@ -31,17 +34,22 @@ export const addCartController = async (req: Request, res: Response) => {
 
 export const getCartController = async (req: Request, res: Response) => {
     try {
-        const user = req.user;
-        if (!user?.userId) {
-            res.status(401).json({status:401, msg:"Unauthorized: missing user token"});
-            return;
-        }
-
-        const cartItems = await getCartItems(user.userId);
-        res.status(200).json({status:200, data:cartItems});
+        // const user = req.user;
+        // if (!user?.userId) {
+        //     res.status(401).json({status:401, msg:"Unauthorized: missing user token"});
+        //     return;
+        // }
+        const headers = req.headers;
+        const authorization = headers.authorization;
+        const token = authorization?.split(" ")[1]
+        const decoded = jwt.verify(token as string, secret)  as { userId: string; email: string }
+        const {userId, email} = decoded;
+        const cartItems = await getCartItems(userId);
+        res.status(200).json({data:cartItems});
         return;
     }catch (error:any) {
-        res.status(500).json({ status: 500, msg: error.message });
+        console.log(error);
+        res.status(500).json({ msg: error.message });
         return;
     }
 }

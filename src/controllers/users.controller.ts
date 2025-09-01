@@ -9,7 +9,7 @@ export const registerNewUserController = async (req: Request, res: Response) => 
     try {
         await registerNewUser(body)
     } catch (error: any) {
-        // console.log(error.message);
+        console.log(error);
         res.json({status: 400, msg: error.message})
         return;
     }

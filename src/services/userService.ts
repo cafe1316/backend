@@ -43,8 +43,11 @@ export const registerNewUser = async (params: RegisterForm):Promise<string> => {
   if (password !== confirmPassword) {
     throw new Error("password does not match!")
   }
+
   // check if this user already exists
   const existed = await db.select().from(cafe1316Users).where(eq(cafe1316Users.email, email))
+  console.log(existed)
+
   if (existed.length > 0) {
     throw new Error("user already exists!")
   }
@@ -52,7 +55,6 @@ export const registerNewUser = async (params: RegisterForm):Promise<string> => {
   // password needs hashing
   const hashedPassword = await bcrypt.hash(password, 10);
   const generatedUuid = uuidv4();
-
   // create a new user
   const registerResult = await db.insert(cafe1316Users).values({
     uuid: generatedUuid,
@@ -61,6 +63,7 @@ export const registerNewUser = async (params: RegisterForm):Promise<string> => {
     email,
     isSocialLogin: false,
   })
+
   
   const token = jwt.sign(
     { userId: generatedUuid, email: email },  // payload
