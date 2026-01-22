@@ -1,0 +1,55 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cafe1316-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=${PORT:-8080}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://cafe1316:cafe1316@postgres:5432/cafe1316}
+      - JWT_SECRET=${JWT_SECRET:-thspPX34dR}
+    env_file:
+      - .env.development
+    volumes:
+      # Mount source code for development (comment out for production)
+      - .:/app
+      - /app/node_modules
+    networks:
+      - cafe-network
+    command: bun run --watch src/index.ts
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: cafe1316-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-cafe1316}
+      - POSTGRES_USER=${POSTGRES_USER:-cafe1316}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-cafe1316}
+    volumes:
+      - cafe-pgdata:/var/lib/postgresql/data
+    networks:
+      - cafe-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U cafe1316" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  cafe-network:
+    name: cafe-network
+    driver: bridge
+
+volumes:
+  cafe-pgdata:
+    name: cafe1316-pgdata
