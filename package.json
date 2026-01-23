@@ -3,7 +3,16 @@
   "module": "src/index.ts",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "docker:up": "docker-compose up",
+    "docker:up:build": "docker-compose up --build",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:restart": "docker-compose restart",
+    "db:migrate": "docker-compose exec app bun run drizzle-kit migrate",
+    "db:push": "docker-compose exec app bun run drizzle-kit push",
+    "db:studio": "docker-compose exec app bun run drizzle-kit studio"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
