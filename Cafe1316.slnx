@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Cafe1316.API/Cafe1316.API.csproj" />
+  <Project Path="Cafe1316.Application/Cafe1316.Application.csproj" />
+  <Project Path="Cafe1316.Domain/Cafe1316.Domain.csproj" />
+  <Project Path="Cafe1316.Infrastructure/Cafe1316.Infrastructure.csproj" />
+</Solution>

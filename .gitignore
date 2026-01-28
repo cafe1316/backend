@@ -1,0 +1,21 @@
+# C# Build outputs
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+# IDE
+.vs/
+.vscode/
+.idea/
+# NuGet
+*.nupkg
+packages/
+# Others
+*.log
+.DS_Store
