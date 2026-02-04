@@ -15,5 +15,26 @@ public class ProductDetailDto
 
     // ===== 分类 =====
     public string CategoryName { get; set; }=string.Empty;
-    public string? SubcategoryId { get; set; }
+    public string? SubcategoryName { get; set; }
+
+    public string Unit { get; set; } = "bag";
+    public string? Brand { get; set; }
+    public int? Weight { get; set; }
+    public string? Origin { get; set; }
+    public string? RoastLevel { get; set; }
+    public string? ProcessingMethod { get; set; }
+    public int? Altitude { get; set; }
+    public string? Varietals { get; set; }
+    public int? HarvestYear { get; set; }
+    public int? CuppingScore { get; set; }
+    public string? Material { get; set; }
+    public string? Color { get; set; }
+    public string? Size { get; set; }
+    public int? Capacity { get; set; }
+    public string? Specifications { get; set; }
+    public List<string> FlavorNotes { get; set; } = new();
+    public List<string> Tags { get; set; } = new();
+    public List<string> ImageUrls { get; set; }= new();
+    public bool IsFeatured { get; set; } = false;
+
 }
