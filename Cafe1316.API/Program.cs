@@ -1,11 +1,24 @@
 using Cafe1316.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Cafe1316.Application.Services;
+using Cafe1316.Application.Interfaces;
+using Cafe1316.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add Repositories
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
+// Add Services
+builder.Services.AddScoped<IProductService, ProductService>();
+
+// Add Controllers
+builder.Services.AddControllers();
+
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -30,6 +43,8 @@ if (app.Environment.IsDevelopment())
 }
 
 //app.UseHttpsRedirection();
+
+app.MapControllers();  // 映射 Controller 路由
 
 var summaries = new[]
 {

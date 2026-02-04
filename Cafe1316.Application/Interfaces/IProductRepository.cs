@@ -2,6 +2,7 @@
 // 为什么需要？因为我们要使用 Product 实体和枚举类型
 using Cafe1316.Domain.Entities;  // 引入 Product 类
 using Cafe1316.Domain.Enums;     // 引入 CoffeeOrigin, RoastLevel 等枚举
+using Cafe1316.Application.DTOs; // 引入 ProductFilterParams 类
 
 // ===== 第 4 行：定义命名空间 =====
 // 这个接口属于 Application 层的 Interfaces 文件夹
@@ -29,31 +30,8 @@ public interface IProductRepository
     // - Products = 当前页的产品列表
     // - TotalCount = 符合条件的总数（用于计算总页数）
     Task<(List<Product> Products, int TotalCount)> GetProductsAsync(
-        // 分页
-        int page=1, // 页码（默认第 1 页）
-        int pageSize=20, // 每页数量（默认 20 个）
-
-        // 分类筛选
-        int? categoryId=null,  // 可选：分类 ID（? = 可为 null）
-        int? subcategoryId=null,  // 可选：子分类 ID
-
-        // 咖啡属性筛选
-        CoffeeOrigin? origin = null,
-        RoastLevel? roastLevel = null, 
-
-        // 标签筛选（Other Options）
-        bool? isNewArrival = null,
-        bool? isOrganic = null,
-        bool? isSeasonal = null,
-
-        // 搜索
-        string? searchTerm = null, 
-
-        // 排序（只有 3 个选项）
-        ProductSortOption sortBy = ProductSortOption.Default,
-
-        CancellationToken cancellationToken = default
-    );
+        ProductFilterParams filterParams,
+        CancellationToken cancellationToken = default);
 
     // ===== 方法 4：获取精选产品 =====
     // 用于首页展示推荐产品

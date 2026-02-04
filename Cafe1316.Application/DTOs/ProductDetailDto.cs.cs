@@ -9,7 +9,7 @@ public class ProductDetailDto
     public string? Description { get; set; }
 
     // ===== 价格和库存 =====
-    public int Price { get; set; } = 0;
+    public decimal Price { get; set; } = 0;
     public string Currency { get; set; } = "AUD";
     public string StockStatus { get; set; } = "InStock"; // "InStock", "LowStock", "OutOfStock"
 

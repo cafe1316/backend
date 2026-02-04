@@ -29,7 +29,7 @@ public static class MappingExtensions
             RoastLevel = product.RoastLevel?.ToString(),
             MainImageUrl = product.Images
                 .OrderBy(i => i.DisplayOrder)
-                .FirstOrDefault()?.Url,
+                .FirstOrDefault()?.ImageUrl,
             
             FlavorNotes = product.FlavorNotes
                 .Select(fn => fn.FlavorNote.ToString())
@@ -92,7 +92,7 @@ public static class MappingExtensions
                 .ToList(),
             ImageUrls = product.Images
                 .OrderBy(i => i.DisplayOrder)
-                .Select(i => i.Url)// ← 直接取 Url（已经是 string）
+                .Select(i => i.ImageUrl)// ← 直接取 ImageUrl（已经是 string）
                 .ToList(), 
             IsFeatured = product.IsFeatured
         };
