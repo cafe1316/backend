@@ -10,6 +10,7 @@ public class ProductListDto
     // ===== 价格信息 =====
     public int Price { get; set; } = 0;
     public string Currency { get; set; } = "AUD";
+    public string Unit { get; set; } = "bag";
 
     // 库存状态（不暴露精确数量）
     public string StockStatus { get; set; } = "InStock"; // "InStock", "LowStock", "OutOfStock"
