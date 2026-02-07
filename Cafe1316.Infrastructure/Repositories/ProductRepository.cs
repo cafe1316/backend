@@ -168,7 +168,6 @@ public class ProductRepository : IProductRepository
             .OrderByDescending(p => p.CreatedAt) // 按创建时间排序（最新的在前）
             .Take(limit)  // 限制数量
             .ToListAsync(cancellationToken);
-
     }
 
 }

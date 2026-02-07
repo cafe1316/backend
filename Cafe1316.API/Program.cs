@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Cafe1316.Application.Services;
 using Cafe1316.Application.Interfaces;
 using Cafe1316.Infrastructure.Repositories;
+using Cafe1316.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,19 +13,56 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Add Repositories
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 
 // Add Services
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 // Add Controllers
 builder.Services.AddControllers();
 
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "http://localhost:3000") // Vite / React 默认端口
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+//builder.Services.AddOpenApi();
+// 添加 Swagger 配置：
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+// 全局异常处理（必须放在最前面）
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// Enable CORS
+app.UseCors("AllowFrontend");
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    // 删除这行：
+    // app.MapOpenApi();
+    
+    // 添加 Swagger UI：
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Cafe1316 API V1");
+        c.RoutePrefix = "swagger"; // 访问地址：http://localhost:5069/swagger
+    });
+}
 
 // Seed 数据（仅在开发环境）
 if (app.Environment.IsDevelopment())
