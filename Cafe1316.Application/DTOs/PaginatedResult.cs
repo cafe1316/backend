@@ -11,7 +11,7 @@ public class PaginatedResult<T>
     public int PageSize { get; set; }
 
     // ===== 计算属性 =====
-    public int TotalPages => (int)Math.Celing((double)TotalCount / PageSize);
+    public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
     public bool HasPreviousPage => Page > 1;
     public bool HasNextPage => Page < TotalPages;
 }

@@ -1,5 +1,6 @@
 // ===== 引入命名空间 =====
 using Cafe1316.Application.Interfaces;
+using Cafe1316.Application.DTOs;
 using Cafe1316.Domain.Entities;
 using Cafe1316.Domain.Enums;
 using Cafe1316.Infrastructure.Data;
@@ -59,7 +60,9 @@ public class ProductRepository : IProductRepository
             .Include(p=>p.Subcategory)
             .Include(p=>p.Images)
             .Include(p=>p.FlavorNotes)
+            .Include(p => p.Tags)
             .Where(p=>p.IsActive==true);
+
 
         // 第 2 步：应用筛选条件
         // 2.1 分类筛选
@@ -88,20 +91,18 @@ public class ProductRepository : IProductRepository
                 p.Description.Contains(filterParams.SearchTerm));
         }
 
-        // 2.5 Other Options 筛选
-        if (filterParams.IsNewArrival.HasValue)
+        // 2.5 标签筛选（通过 ProductTagMapping）
+        if (filterParams.IsNewArrival.HasValue && filterParams.IsNewArrival.Value)
         {
-            query = query.Where(p => p.IsNewArrival == filterParams.IsNewArrival);
+            query = query.Where(p => p.Tags.Any(t => t.Tag == ProductTag.NewArrival));
         }
-        
-        if (filterParams.IsOrganic.HasValue)
+        if (filterParams.IsOrganic.HasValue && filterParams.IsOrganic.Value)
         {
-            query = query.Where(p => p.IsOrganic == filterParams.IsOrganic);
+            query = query.Where(p => p.Tags.Any(t => t.Tag == ProductTag.Organic));
         }
-
-        if (filterParams.IsSeasonal.HasValue)
+        if (filterParams.IsSeasonal.HasValue && filterParams.IsSeasonal.Value)
         {
-            query = query.Where(p => p.IsSeasonal == filterParams.IsSeasonal);
+            query = query.Where(p => p.Tags.Any(t => t.Tag == ProductTag.Seasonal));
         }
 
         // 2.6 价格区间筛选
@@ -120,7 +121,7 @@ public class ProductRepository : IProductRepository
         // 2.7 烘焙度筛选（多选）
         if (filterParams.RoastLevels != null && filterParams.RoastLevels.Any())
         {
-            query = query.Where(p=>filterParams.RoastLevels.Contains(p.RoastLevel));
+            query = query.Where(p => p.RoastLevel.HasValue && filterParams.RoastLevels.Contains(p.RoastLevel.Value));
         }
 
         // 2.8 风味标签筛选（多选）
@@ -138,7 +139,8 @@ public class ProductRepository : IProductRepository
         {
             ProductSortOption.PriceLowToHigh => query.OrderBy(p=>p.PriceCents),
             ProductSortOption.PriceHighToLow => query.OrderByDescending(p=>p.PriceCents),
-            _ => query.OrderBy(p=>p.DisplayOrder)
+            _ => query.OrderByDescending(p => p.IsFeatured)//先排精选
+                .ThenByDescending(p => p.CreatedAt)//再排创建时间
         };
 
         // 第 5 步：应用分页
@@ -163,10 +165,9 @@ public class ProductRepository : IProductRepository
             .Include(p=>p.Images)
             .Include(p=>p.FlavorNotes)
             .Where(p=>p.IsFeatured==true && p.IsActive==true)// 只查询激活且精选的产品
-            .OrderBy(p=>p.DisplayOrder) // 按推荐顺序排序
+            .OrderByDescending(p => p.CreatedAt) // 按创建时间排序（最新的在前）
             .Take(limit)  // 限制数量
             .ToListAsync(cancellationToken);
-
     }
 
 }

@@ -29,7 +29,7 @@ public static class MappingExtensions
             RoastLevel = product.RoastLevel?.ToString(),
             MainImageUrl = product.Images
                 .OrderBy(i => i.DisplayOrder)
-                .FirstOrDefault()?.Url,
+                .FirstOrDefault()?.ImageUrl,
             
             FlavorNotes = product.FlavorNotes
                 .Select(fn => fn.FlavorNote.ToString())
@@ -92,7 +92,7 @@ public static class MappingExtensions
                 .ToList(),
             ImageUrls = product.Images
                 .OrderBy(i => i.DisplayOrder)
-                .Select(i => i.Url)// ← 直接取 Url（已经是 string）
+                .Select(i => i.ImageUrl)// ← 直接取 ImageUrl（已经是 string）
                 .ToList(), 
             IsFeatured = product.IsFeatured
         };
@@ -110,4 +110,26 @@ public static class MappingExtensions
         };
     }
 
+    // ===== Category → CategoryWithSubsDto =====
+    public static CategoryWithSubsDto ToWithSubsDto(this Category category)
+    {
+        return new CategoryWithSubsDto
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Slug = category.Slug,
+            Subcategories = category.Subcategories
+                .Where(s => s.IsActive == true)
+                .OrderBy(s => s.DisplayOrder)
+                // Repository 的 Include 过滤在某些 EF Core 版本中可能不完全可靠; 
+                // Mapping 层再次确认，确保数据安全; 
+                // 防御性编程 ✅
+                .Select(s => new SubcategoryDto
+                {
+                    Id = s.Id,
+                    Slug = s.Slug,
+                    Name = s.Name
+                }).ToList()
+        };
+    }
 }

@@ -35,15 +35,35 @@ public class ProductsController : ControllerBase
     }
 
     // GET: api/products/5
-    [HttpGet]
+    [HttpGet("{id:int}")]
     public async Task<ActionResult<ProductDetailDto?>> GetProductById(int id, CancellationToken cancellationToken = default)
     {
         var result = await _productServices.GetProductByIdAsync(id, cancellationToken);
 
         if (result == null)
-            return NotFound(new {message = "Product not found."});
+            return NotFound(new {message = $"Product with id '{id}' not found."});
         return Ok(result);
     }
 
-    
+    // GET: api/products/slug/ethiopian-yirgacheffe
+    [HttpGet("slug/{slug}")]
+    public async Task<ActionResult<ProductDetailDto?>> GetProductBySlug(string slug, CancellationToken cancellationToken = default)
+    {
+        var result = await _productServices.GetProductBySlugAsync(slug, cancellationToken);
+
+        if (result == null)
+        {
+            return NotFound(new {message = $"Product with slug '{slug}' not found."});
+        }
+        return Ok(result);
+    }
+
+    // GET: api/products/featured
+    [HttpGet("featured")]
+    public async Task<ActionResult<List<ProductListDto>>> GetFeaturedProducts([FromQuery] int limit = 10, CancellationToken cancellationToken = default)
+    {
+        var result = await _productServices.GetFeaturedProductsAsync(limit, cancellationToken);
+        return Ok(result);
+    }
+
 }

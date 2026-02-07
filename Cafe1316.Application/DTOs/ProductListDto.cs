@@ -8,7 +8,7 @@ public class ProductListDto
     public string Slug { get; set; }= string.Empty;
 
     // ===== 价格信息 =====
-    public int Price { get; set; } = 0;
+    public decimal Price { get; set; } = 0;
     public string Currency { get; set; } = "AUD";
     public string Unit { get; set; } = "bag";
 
