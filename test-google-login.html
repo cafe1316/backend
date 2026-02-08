@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth 测试</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .login-section {
+            text-align: center;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            display: none;
+        }
+        .result.error {
+            background: #ffebee;
+        }
+        .result h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        .result.error h3 {
+            color: #c62828;
+        }
+        .code-block {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .user-info img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 15px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .steps {
+            background: #fff3e0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .steps h3 {
+            margin-top: 0;
+            color: #e65100;
+        }
+        .steps ol {
+            margin: 10px 0;
+        }
+        .steps li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Google OAuth 测试</h1>
+        <p class="subtitle">测试您的 Cafe1316 后端 API</p>
+
+        <div class="steps">
+            <h3>📋 测试步骤</h3>
+            <ol>
+                <li>点击下方的 Google 登录按钮</li>
+                <li>选择您的 Google 账号</li>
+                <li>授权应用访问您的基本信息</li>
+                <li>查看后端返回的 JWT Token 和用户信息</li>
+            </ol>
+        </div>
+
+        <div class="login-section">
+            <h2>👇 点击登录</h2>
+            <div id="g_id_onload"
+                 data-client_id="294571068452-pol4fpi3d67jhfjkrv3rf11n86bv18fm.apps.googleusercontent.com"
+                 data-callback="handleCredentialResponse">
+            </div>
+            <div class="g_id_signin" 
+                 data-type="standard"
+                 data-size="large"
+                 data-theme="outline"
+                 data-text="signin_with"
+                 data-shape="rectangular"
+                 data-logo_alignment="left">
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在验证...</p>
+        </div>
+
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        function handleCredentialResponse(response) {
+            console.log("📝 收到 Google ID Token:", response.credential);
+            
+            // 显示加载状态
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+            
+            // 调用后端 API
+            testBackend(response.credential);
+        }
+        
+        async function testBackend(idToken) {
+            try {
+                console.log("🚀 正在调用后端 API...");
+                
+                const response = await fetch('http://localhost:5255/api/auth/google', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ idToken: idToken })
+                });
+                
+                const data = await response.json();
+                
+                // 隐藏加载状态
+                document.getElementById('loading').style.display = 'none';
+                
+                if (response.ok) {
+                    console.log("✅ 登录成功!", data);
+                    showSuccess(data);
+                } else {
+                    console.error("❌ 登录失败:", data);
+                    showError(data);
+                }
+                
+            } catch (error) {
+                console.error("❌ 网络错误:", error);
+                document.getElementById('loading').style.display = 'none';
+                showError({ message: error.message });
+            }
+        }
+        
+        function showSuccess(data) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result';
+            resultDiv.style.display = 'block';
+            
+            resultDiv.innerHTML = `
+                <h3>✅ 登录成功！</h3>
+                
+                <div class="user-info">
+                    <img src="${data.user.avatarUrl || 'https://via.placeholder.com/50'}" alt="Avatar">
+                    <div>
+                        <strong>${data.user.name}</strong><br>
+                        <small>${data.user.email}</small>
+                    </div>
+                </div>
+                
+                <p><strong>🔑 您的 JWT Token：</strong></p>
+                <div class="code-block">${data.token.substring(0, 50)}...（已截断）</div>
+                
+                <p><strong>📊 完整响应数据：</strong></p>
+                <div class="code-block">${JSON.stringify(data, null, 2)}</div>
+                
+                <p style="margin-top: 20px; color: #2e7d32;">
+                    ✨ 恭喜！您的 Google OAuth 后端已成功运行！<br>
+                    现在可以在前端应用中使用这个 Token 进行认证了。
+                </p>
+            `;
+        }
+        
+        function showError(error) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result error';
+            resultDiv.style.display = 'block';
+            
+            resultDiv.innerHTML = `
+                <h3>❌ 登录失败</h3>
+                <p><strong>错误信息：</strong></p>
+                <div class="code-block">${JSON.stringify(error, null, 2)}</div>
+                
+                <p style="margin-top: 20px; color: #c62828;">
+                    请检查：<br>
+                    1. 后端服务是否正在运行 (http://localhost:5255)<br>
+                    2. Google Auth 配置是否正确<br>
+                    3. 数据库连接是否正常<br>
+                    4. 查看浏览器控制台获取更多信息
+                </p>
+            `;
+        }
+    </script>
+</body>
+</html>

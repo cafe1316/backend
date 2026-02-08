@@ -19,3 +19,7 @@ packages/
 # Others
 *.log
 .DS_Store
+# Environment-specific settings (contains secrets)
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Staging.json
