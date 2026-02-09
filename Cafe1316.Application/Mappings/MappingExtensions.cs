@@ -132,4 +132,40 @@ public static class MappingExtensions
                 }).ToList()
         };
     }
+
+    // ===== CartItem → CartItemDto =====
+    public static CartItemDto ToDto(this CartItem cartItem)
+    {
+        var price = cartItem.Product.PriceCents / 100m;
+        return new CartItemDto
+        {
+            Id = cartItem.Id,
+            ProductId = cartItem.ProductId,
+            ProductName = cartItem.Product.Name,
+            ProductSlug = cartItem.Product.Slug,
+            MainImageUrl = cartItem.Product.Images
+                .OrderBy(i => i.DisplayOrder)
+                .FirstOrDefault()?.ImageUrl,
+            Price = price,
+            Currency = cartItem.Product.Currency,
+            Quantity = cartItem.Quantity,
+            StockStatus = GetStockStatus(cartItem.Product.Stock),
+            Subtotal = price * cartItem.Quantity,
+            AddedAt = cartItem.AddedAt
+        };
+    }
+
+    // ===== List<CartItem> → CartDto =====
+    public static CartDto ToCartDto(this List<CartItem> items)
+    {
+        var dtos = items.Select(item => item.ToDto()).ToList();
+        var total = dtos.Sum(dto => dto.Subtotal);
+        return new CartDto
+        {
+            Items = dtos,
+            TotalItems = dtos.Count,
+            TotalAmount = total,
+            Currency = "AUD"
+        };
+    }
 }
