@@ -1,5 +1,6 @@
 using Cafe1316.Application.DTOs;
 using Cafe1316.Domain.Entities;
+using System.Text.Json;
 
 namespace Cafe1316.Application.Mappings;
 
@@ -166,6 +167,61 @@ public static class MappingExtensions
             TotalItems = dtos.Count,
             TotalAmount = total,
             Currency = "AUD"
+        };
+    }
+
+    // ===== OrderItem → OrderItemDto =====
+    public static OrderItemDto ToDto(this OrderItem orderItem)
+    {
+        return new OrderItemDto
+        {
+            Id = orderItem.Id,
+            ProductId = orderItem.ProductId,
+            ProductName = orderItem.ProductName,
+            ProductSlug = orderItem.ProductSlug,
+            ImageUrl = orderItem.ImageUrl,
+            UnitPrice = orderItem.UnitPriceCents / 100m,
+            Quantity = orderItem.Quantity,
+            LineTotal = orderItem.LineTotalCents / 100m,
+            Currency = orderItem.Currency
+        };
+    }
+
+    // ===== Order → OrderDto =====
+    public static OrderDto ToDto(this Order order)
+    {
+        return new OrderDto
+        {
+            Id = order.Id,
+            Uuid = order.Uuid,
+            OrderNumber = order.OrderNumber,
+            Email = order.Email,
+            
+            // JSONB地址转对象
+            ShippingAddress = JsonSerializer.Deserialize<OrderAddressDto>(order.ShippingAddress)!,
+            BillingAddress = !string.IsNullOrEmpty(order.BillingAddress)
+                ? JsonSerializer.Deserialize<OrderAddressDto>(order.BillingAddress)
+                : null,
+            
+            // 金额（Cents → Decimal）
+            Subtotal = order.SubtotalCents / 100m,
+            ShippingFee = order.ShippingFeeCents / 100m,
+            Tax = order.TaxCents / 100m,
+            GrandTotal = order.GrandTotalCents / 100m,
+            Currency = order.Currency,
+            
+            // 状态
+            Status = order.Status.ToString(),
+            PaidAt = order.PaidAt,
+            
+            // 备注
+            Notes = order.Notes,
+            
+            // 订单商品
+            Items = order.OrderItems.Select(oi => oi.ToDto()).ToList(),
+            
+            // 时间
+            CreatedAt = order.CreatedAt
         };
     }
 }
