@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Cafe1316.API.Controllers;
 
+// ⚠️ DEPRECATED: 此测试控制器使用了已废弃的 CreateOrderAsync 方法
+// 如需测试订单流程，请使用 PaymentsController 的 Stripe 支付流程
+/*
 [ApiController]
 [Route("api/test")]
 public class TestOrderController : ControllerBase
@@ -101,3 +104,4 @@ public class TestOrderController : ControllerBase
         }
     }
 }
+*/

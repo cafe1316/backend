@@ -19,6 +19,8 @@ public class OrderController : ControllerBase
         _orderService = orderService;
     }
 
+    // ⚠️ DEPRECATED: 旧版创建订单端点已废弃，现在使用 PaymentsController 的 Stripe 支付流程
+    /*
     [HttpPost]
     public async Task<ActionResult<OrderDto>> CreateOrder(
         [FromBody] CreateOrderDto dto,
@@ -28,6 +30,8 @@ public class OrderController : ControllerBase
         var result = await _orderService.CreateOrderAsync(userId, dto, cancellationToken);
         return Ok(result);
     }
+    */
+
 
     [HttpGet]
     public async Task<ActionResult<PaginatedResult<OrderDto>>> GetOrdersAsync([FromQuery] int page = 1,
