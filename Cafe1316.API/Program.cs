@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Cafe1316.Application.Services;
 using Cafe1316.Application.Interfaces;
 using Cafe1316.Infrastructure.Repositories;
+using Cafe1316.Infrastructure.Services; // 新增：用于 StripePaymentService
 using Cafe1316.API.Middleware;
 using Cafe1316.Application.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -23,6 +24,7 @@ builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<ICheckoutIntentRepository, CheckoutIntentRepository>();
 
 // 注册 Services
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -31,10 +33,12 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 
 // 配置 Google OAuth 和 JWT Settings
 builder.Services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuth"));
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
 
 // 配置 JWT 认证
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
