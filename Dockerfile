@@ -9,6 +9,9 @@ COPY Cafe1316.Application/ Cafe1316.Application/
 COPY Cafe1316.Domain/ Cafe1316.Domain/
 COPY Cafe1316.Infrastructure/ Cafe1316.Infrastructure/
 
+# Debug: List files to verify copy
+RUN ls -R /src/Cafe1316.Infrastructure
+
 # Restore dependencies
 RUN dotnet restore "Cafe1316.API/Cafe1316.API.csproj"
 
