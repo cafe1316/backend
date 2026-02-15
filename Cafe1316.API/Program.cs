@@ -25,29 +25,52 @@ var builder = WebApplication.CreateBuilder(args);
         if (!string.IsNullOrEmpty(databaseUrl))
         {
             connectionString = databaseUrl;
+            Console.WriteLine("--> Using DATABASE_URL from environment.");
+        }
+        else 
+        {
+             Console.WriteLine("--> Using DefaultConnection from appsettings.");
         }
 
-        // 如果是 postgres:// 开头的 URI 格式 (Render 默认)，需要转换
-        if (!string.IsNullOrEmpty(connectionString) && connectionString.StartsWith("postgres://"))
+        // DEBUG: 打印连接字符串开头（不泄露密码）用于调试
+        if (!string.IsNullOrEmpty(connectionString)) {
+            var displayStr = connectionString.Length > 15 ? connectionString.Substring(0, 15) + "..." : connectionString;
+            Console.WriteLine($"--> Raw ConnectionString Start: '{displayStr}'");
+        }
+
+        // 预处理：去除前后空格
+        if (!string.IsNullOrEmpty(connectionString))
+        {
+            connectionString = connectionString.Trim();
+        }
+
+        // 如果是 URI 格式 (postgres:// 或 postgresql://)，需要转换
+        if (!string.IsNullOrEmpty(connectionString) && 
+           (connectionString.StartsWith("postgres://") || connectionString.StartsWith("postgresql://")))
         {
             try 
             {
+                Console.WriteLine("--> Detected URI format connection string. Parsing to Npgsql format...");
                 var databaseUri = new Uri(connectionString);
-                var userInfo = databaseUri.UserInfo.Split(':');
+                var userInfo = databaseUri.UserInfo.Split(new[] { ':' }, 2); // 限制分割次数，防止密码中包含冒号
+                
                 var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder
                 {
                     Host = databaseUri.Host,
-                    Port = databaseUri.Port,
-                    Username = userInfo[0],
-                    Password = userInfo[1],
-                    Database = databaseUri.LocalPath.TrimStart('/')
+                    Port = databaseUri.Port > 0 ? databaseUri.Port : 5432,
+                    Username = userInfo.Length > 0 ? userInfo[0] : null,
+                    Password = userInfo.Length > 1 ? userInfo[1] : null,
+                    Database = databaseUri.LocalPath.TrimStart('/'),
+                    Pooling = true,
+                    SslMode = Npgsql.SslMode.Prefer 
                 };
                 connectionString = npgsqlBuilder.ToString();
+                Console.WriteLine("--> Successfully parsed URI to Npgsql format.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error parsing connection URI: {ex.Message}");
-                // 转换失败则回退到原始字符串，让 Npgsql 抛出具体错误
+                Console.WriteLine($"--> Error parsing connection URI: {ex.Message}");
+                Console.WriteLine("--> WARNING: Falling back to raw string. Expect crash if format is invalid.");
             }
         }
 

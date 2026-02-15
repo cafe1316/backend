@@ -49,6 +49,7 @@ public class StripePaymentService : IPaymentService
     // 3. 实现 ConstructEventAsync
     public async Task<PaymentWebhookDto> ConstructEventAsync(string json, string signature)
     {
+        await Task.CompletedTask; // Silence warning CS1998
         try
         {
             // 验证签名：确保是 Stripe 发来的
