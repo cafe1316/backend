@@ -20,9 +20,14 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="*.cs" />
+    <Compile Include="Data/**/*.cs" />
+    <Compile Include="Repositories/**/*.cs" />
+    <Compile Include="Services/**/*.cs" />
     <EmbeddedResource Remove="**/*.resx" />
   </ItemGroup>
 
