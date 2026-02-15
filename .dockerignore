@@ -1,0 +1,10 @@
+**/bin
+**/obj
+.git
+.vscode
+.vs
+.idea
+**/*.sh
+**/*.md
+test-*
+*.log
