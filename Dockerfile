@@ -18,7 +18,6 @@ RUN rm -rf */bin* */obj*
 RUN dotnet --info
 RUN ls -R /src/Cafe1316.Infrastructure
 RUN echo "--- Infrastructure CSPROJ Content ---" && cat /src/Cafe1316.Infrastructure/Cafe1316.Infrastructure.csproj
-RUN echo "--- Directory.Build.props Content ---" && cat /src/Directory.Build.props
 # ------------------------
 
 # Restore dependencies
