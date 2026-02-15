@@ -86,9 +86,22 @@ public class ProductRepository : IProductRepository
         // 2.4 搜索关键词
         if (!string.IsNullOrEmpty(filterParams.SearchTerm))
         {
-            query = query.Where(p=>
-                p.Name.Contains(filterParams.SearchTerm) ||
-                p.Description.Contains(filterParams.SearchTerm));
+            var term = filterParams.SearchTerm.Trim();
+
+            // Pre-calculate matching enum values for partial search (支持枚举的部分匹配)
+            var matchingOrigins = Enum.GetValues<CoffeeOrigin>()
+                .Where(e => e.ToString().Contains(term, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var lowerTerm = term.ToLower();
+
+            query = query.Where(p =>
+                p.Name.ToLower().Contains(lowerTerm) ||
+                (p.Description != null && p.Description.ToLower().Contains(lowerTerm)) ||
+                (p.Brand != null && p.Brand.ToLower().Contains(lowerTerm)) ||
+                (p.Varietals != null && p.Varietals.ToLower().Contains(lowerTerm)) ||
+                (p.Origin.HasValue && matchingOrigins.Contains(p.Origin.Value))
+            );
         }
 
         // 2.5 标签筛选（通过 ProductTagMapping）

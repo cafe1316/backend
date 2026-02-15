@@ -16,7 +16,18 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 配置数据库
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        // 本地开发使用 SQLite
+        options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
+    }
+    else
+    {
+        // 生产环境 (Render/Docker) 使用 PostgreSQL
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    }
+});
 
 // 注册 Repositories
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
@@ -103,11 +114,22 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// 4. 数据库 Seed（仅开发环境）
-if (app.Environment.IsDevelopment())
+// 4. 数据库 Seed (自动迁移和填充数据)
+// 注意：在生产环境谨慎使用，已在 DbInitializer 中加入检查，防止重复填充
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    // 自动应用迁移 (如果用 Postgres)
+    if (!app.Environment.IsDevelopment()) 
+    {
+        try {
+             await context.Database.MigrateAsync(); 
+        } catch (Exception ex) {
+             Console.WriteLine($"Migration Error: {ex.Message}");
+        }
+    }
+    
+    // 填充种子数据
     await DbInitializer.SeedAsync(context);
 }
 

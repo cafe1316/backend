@@ -22,9 +22,19 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("me")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<ActionResult<UserDto>> GetCurrentUser()
     {
-        // 暂时返回 NotImplemented
-        return StatusCode(501, "Not implemented yet");
+        // Retrieve User ID from Claims
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var user = await _authService.GetCurrentUserAsync(userId);
+        if (user == null) return NotFound();
+
+        return Ok(user);
     }
 }

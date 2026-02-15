@@ -78,7 +78,22 @@ public class AuthService : IAuthService
 
     public async Task<UserDto?> GetCurrentUserAsync(Guid userId)
     {
-        // 以后实现
-        throw new NotImplementedException();
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null) return null;
+
+        return new UserDto
+        {
+            Id = user.Id,
+            Name = user.DisplayName ?? user.FirstName ?? "User",
+            Email = user.Email,
+            AvatarUrl = user.Profile?.AvatarUrl,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Gender = user.Profile?.Gender,
+            Phone = user.Profile?.Phone,
+            Bio = user.Profile?.Bio,
+            BirthDate = user.Profile?.BirthDate?.ToString("yyyy-MM-dd"),
+            CreatedAt = user.CreatedAt
+        };
     }
 }

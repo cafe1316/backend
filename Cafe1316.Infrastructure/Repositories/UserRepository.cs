@@ -25,6 +25,13 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
     }
 
+    public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .Include(u => u.Profile)
+            .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+    }
+
     public async Task<User> AddAsync(User user)
     {
         await _context.Users.AddAsync(user); //把 User 对象添加到 EF Core 的追踪中 此时还没写入数据库！ 只是标记为 "待添加"
