@@ -5,15 +5,14 @@ WORKDIR /src
 # Copy everything explicitly to ensure no folder is missed
 # Copy everything explicitly to ensure no folder is missed
 COPY Cafe1316.slnx ./
-# Copy global props to fix SDK issues
-COPY Directory.Build.props ./
 COPY Cafe1316.API/ Cafe1316.API/
 COPY Cafe1316.Application/ Cafe1316.Application/
 COPY Cafe1316.Domain/ Cafe1316.Domain/
 COPY Cafe1316.Infrastructure/ Cafe1316.Infrastructure/
 
 # Safety: Remove any bin/obj folders that might have slipped in (to avoid .NET version mismatch)
-RUN rm -rf */bin */obj
+# Safety: Aggressively remove any bin/obj folders (including those with backslashes)
+RUN rm -rf */bin* */obj*
 
 # --- DIAGNOSTIC BLOCK ---
 RUN dotnet --info
