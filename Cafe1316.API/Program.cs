@@ -17,16 +17,9 @@ var builder = WebApplication.CreateBuilder(args);
 // 配置数据库
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    if (builder.Environment.IsDevelopment())
-    {
-        // 本地开发使用 SQLite
-        options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
-    }
-    else
-    {
-        // 生产环境 (Render/Docker) 使用 PostgreSQL
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-    }
+    // 统一开发和生产环境，都使用 PostgreSQL (因为有 docker-compose 数据库)
+    // 如果您确实想在本地用 SQLite，请修改 appsettings.Development.json 并把这里改回 UseSqlite
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
 // 注册 Repositories
