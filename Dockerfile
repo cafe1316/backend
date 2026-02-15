@@ -6,7 +6,7 @@ WORKDIR /src
 COPY . .
 
 # Restore dependencies
-RUN dotnet restore "Cafe1316.slnx"
+RUN dotnet restore "Cafe1316.API/Cafe1316.API.csproj"
 
 # Build the project
 WORKDIR "/src/Cafe1316.API"
