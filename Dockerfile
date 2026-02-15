@@ -5,8 +5,6 @@ WORKDIR /src
 # Copy everything explicitly to ensure no folder is missed
 # Copy everything explicitly to ensure no folder is missed
 COPY Cafe1316.slnx ./
-# Copy global props to fix SDK issues
-COPY Directory.Build.props ./
 COPY Cafe1316.API/ Cafe1316.API/
 COPY Cafe1316.Application/ Cafe1316.Application/
 COPY Cafe1316.Domain/ Cafe1316.Domain/
