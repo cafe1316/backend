@@ -1329,8 +1329,35 @@ public static class DbInitializer
 
         await context.ProductTagMappings.AddRangeAsync(productTags);
         await context.SaveChangesAsync();
-
         Console.WriteLine($"✅ Added {productTags.Count} product tags");
+
+        // ==================== 6. Add Product Images (New!) ====================
+        Console.WriteLine("🖼️  Adding product images...");
+        
+        // Strategy: Iterate over tracked products and add images
+        // Since we already saved Products via SaveChangesAsync() previously? 
+        // Wait, looking at lines 1206-1207:
+        // await context.Products.AddRangeAsync(products);
+        // await context.SaveChangesAsync();
+        // So products HAS IDs now.
+        
+        var productImages = new List<ProductImage>();
+        
+        foreach (var product in products)
+        {
+            string imageUrl = GetProductImageUrl(product.Name, product.Sku);
+            productImages.Add(new ProductImage
+            {
+                ProductId = product.Id,
+                ImageUrl = imageUrl,
+                IsPrimary = true,
+                DisplayOrder = 1
+            });
+        }
+        
+        await context.ProductImages.AddRangeAsync(productImages);
+        await context.SaveChangesAsync();
+        Console.WriteLine($"✅ Added {productImages.Count} product images");
 
         Console.WriteLine("🎉 Seed completed successfully!");
         Console.WriteLine($"   📁 {3} categories");
@@ -1338,5 +1365,100 @@ public static class DbInitializer
         Console.WriteLine($"   ☕ {products.Count} products");
         Console.WriteLine($"   🏷️  {flavorNotes.Count} flavor notes");
         Console.WriteLine($"   🏷️  {productTags.Count} product tags");
+        Console.WriteLine($"   🖼️  {productImages.Count} product images");
+    }
+
+    private static string GetProductImageUrl(string productName, string sku)
+    {
+        // Using a switch expression for cleaner mapping based on exact product names
+        // Fallback to Contains check if needed, but user provided specific mapping.
+        
+        return productName switch
+        {
+            // Ethiopia
+            "Ethiopian Yirgacheffe" => "https://toffeecoffeeroasters.com/cdn/shop/products/1_bc245df0-db63-4b11-87f7-37dcd3a472e2_1080x.png?v=1675089677",
+            "Ethiopian Sidamo" => "https://www.thebeancartel.com.au/cdn/shop/products/melbourne-specialty-coffee-roaster-single-origin-ethiopia.jpg?v=1641888734",
+            "Ethiopian Harrar" => "https://blog.suvie.com/wp-content/uploads/2020/02/Harrar-beans.jpg",
+            "Ethiopian Guji" => "https://cheekydevilcoffee.com.au/wp-content/uploads/2022/08/2-2-scaled-e1691637819560.jpg",
+            "Ethiopian Limu" => "https://www.vellanero.com.au/cdn/shop/products/IMG_6315_grande.jpg?v=1454802434",
+            
+            // Colombia
+            "Colombia Supremo" => "https://www.bakeandbrew.com.au/wp-content-6er4st/uploads/2013/09/Colombian-supremo.jpg",
+            "Colombia Huila" => "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTqvPb1PK94fcxSDYtuHxvK7IR6q9334iknfQ&s",
+            "Colombia Nariño" => "https://www.shutterstock.com/image-photo/colombia-narino-roasted-arabica-coffee-260nw-1187894506.jpg",
+            "Colombia Tolima" => "https://specialtycoffeebrewing.com/wp-content/uploads/2024/04/colombian-coffee-beans.jpg",
+            "Colombia Decaf" => "https://owleyecoffee.com/cdn/shop/files/ColombiaDecaf.jpg?v=1706635101",
+            
+            // Guatemala
+            "Guatemala Antigua" => "https://coffeehero.com.au/cdn/shop/articles/2a0736c4a49458d2a920231ccef7eddb_2048x2048.jpg?v=1625059744",
+            "Guatemala Huehuetenango" => "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTS1wxOB_r1mrqB9JGLQGeS31GSazhuDuIo1g&s",
+            "Guatemala Atitlán" => "https://espressocoffeeguide.com/wp-content/uploads/2010/05/guatemalaorganic-coffee-beans.jpg",
+            "Guatemala Cobán" => "https://m.media-amazon.com/images/I/81Hr7hiZrOL.jpg",
+            
+            // Brazil
+            "Brazil Santos" => "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTuaDDAy_lCVb5rYRxYRIRUFjQgW94ecr1Hvg&s",
+            "Brazil Cerrado" => "https://svtea.com/cdn/shop/products/coffee1-1_xl_60ed3267-9596-486c-ab58-a1517ae908a8.jpg?v=1654785468",
+            "Brazil Sul de Minas" => "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPrVUWEzvg-77bPM52H5bwY85wyEKjBbFXfg&s",
+
+            // Kenya
+            "Kenya AA" => "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQNQBbgimMAlkcKrHQmDEILsF90eTBO5SlQHw&s",
+            "Kenya Nyeri" => "https://islandcruiserscoffee.com/cdn/shop/files/IMG-2452.heic?v=1764767593&width=1946",
+            "Kenya Kirinyaga" => "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSif4r7dgPLCISpY6NRBgfxJWKXL3vrT5x5Vg&s",
+
+            // Costa Rica
+            "Costa Rica Tarrazú" => "https://images.squarespace-cdn.com/content/v1/5e4b33ab386d0459c86b5174/1605063065468-W89PDLBIV1QZLCRM2DTE/Costa+Rica_DSC_8458_c.jpg",
+            "Costa Rica West Valley" => "https://alarosteri.se/cdn/shop/files/40aabd_dec0a0837b60431ebd8916d957efe58f_mv2_green_wv.jpg?v=1728827482&width=1445",
+            "Costa Rica Central Valley" => "https://burmancoffee.com/wp-content/uploads/2026/01/Costa-Rica-Vida.jpg",
+
+            // Blends
+            "House Blend" => "https://www.ciscoscoffee.com.au/wp-content/uploads/2021/10/Ciscos-Coffee-House-Blend-Coffee.jpg",
+            "Espresso Blend" => "https://static1.squarespace.com/static/6111f6f4a45ca157a14b224a/6111f6f8a45ca157a14b2336/6111fdb8005df17c5ef34a4b/1764300175164/249235573_750872152417439_7244262349121771721_n.jpg?format=1500w",
+            
+            // Kettles
+            "Fellow Stagg EKG Electric Kettle" => "https://www.ciscoscoffee.com.au/wp-content/uploads/2024/05/Ciscos-Coffee-Fellow-Stagg-EKG-Electric-Kettle-Smoke-Green.jpg",
+            "Hario V60 Buono Kettle" => "https://harioaustralia.com.au/cdn/shop/files/VKBN_04.png?v=1763104844&width=2048",
+            "Bodum Gooseneck Kettle" => "https://cb.scene7.com/is/image/Crate//MelittaPrcsPourKttlSSF23_VND?$web_search_sm$&$web_pdp_carousel_low$",
+
+            // Drippers
+            "Hario V60 Ceramic Dripper" => "https://harioaustralia.com.au/cdn/shop/files/VDC-02-SPB_00.png?v=1763199867&width=2048",
+            "Kalita Wave 185" => "https://images.getrecipekit.com/20220413173314-brewing-20a-20kalita-20wave-20185-20square.JPG?aspect_ratio=4:3&quality=90&",
+            "Chemex Classic 6-Cup" => "https://d2og65f1kwx1z6.cloudfront.net/wp-content/uploads/2021/05/quest-chemex-6-cup-product.jpg",
+            "Origami Dripper" => "https://origamidripper.au/cdn/shop/files/Origami_HolderAS_WhiteSplash3_2048x.jpg?v=1707975208",
+
+            // Grinders
+            "Baratza Encore Grinder" => "https://fivesenses.com.au/cdn/shop/products/Encore-Both-WEBSITE.png?v=1655347055",
+            "1Zpresso JX Manual Grinder" => "https://baristawarehouse.com.au/cdn/shop/files/1Zpresso-JX-Pro-S-Hand-Coffee-Grinder_600x600.jpg?v=1751860679",
+            "Hario Skerton Pro" => "https://coffeemachinespecialist.com.au/wp-content/uploads/09._Hario_Coffee_Mill_____Skerton_PRO-1-510x510.png",
+            "Fellow Ode Brew Grinder" => "https://images.squarespace-cdn.com/content/v1/6464abb2deb72f00037909ee/1701925003248-EOKUQWTTEZ5AGET4ZXOV/Fellow-Ode-Brew-Gen-2-Coffee-Grinder-White_600x600.jpg?format=1000w",
+
+            // French Press
+            "Bodum Chambord French Press" => "https://www.kitchenwarehouse.com.au/_next/image?url=https%3A%2F%2Fmedia.kitchenwarehouse.com.au%2Fkitchenwarehouse%2Fimage%2Fupload%2Fc_fill%2Cg_face%2Cw_auto%2Cf_auto%2Cq_auto%2Ft_PDP_2000x2000%2FSupplier%2520Images%2520%2F2000px%2FBodum-Chambord-French-Press-8-Cup_2_2000px.jpg%3Fimagetype%3Dpdp_full&w=828&q=75",
+            "Espro P7 French Press" => "https://www.williams-sonoma.com.au/site/WS/Product%20Images/espro-stainless-steel-french-press-202437-0009-espro-p7-french-press-z.jpg?resizeid=93&resizeh=450&resizew=450",
+
+            // Espresso Machines
+            "Breville Bambino Plus" => "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRVc3V2SgNvir1lbqntl_yjst13pLIHocCyXw&s",
+            "Gaggia Classic Pro" => "https://www.gaggia.com.au/wp-content/uploads/2017/01/Gaggia-ClassicEvo_-Automatic-coffee-machine.png",
+            
+            // Cups & Mugs
+            "KeepCup Brew 12oz" => "https://au.keepcup.com/cdn/shop/files/KeepCup-Brew-Cork_Moonlight_M_12oz-inhand.jpg?v=1758013639&width=1000",
+            "Fellow Carter Move Mug" => "https://www.essentialutensil.au/cdn/shop/files/stone_life_14_1.jpg?v=1734410920",
+            "NotNeutral Lino Mug" => "https://m.media-amazon.com/images/I/31+ZrUIdS2L.jpg",
+
+            // Storage
+            "Airscape Coffee Canister" => "https://alternativebrewing.com.au/cdn/shop/files/Airscape-Classic-Matte-Blue-7_-Small_600x600_018135f0-8a22-4428-878e-860a7e0e7cb0_600x.webp?v=1751520760",
+            "Fellow Atmos Vacuum Canister" => "https://cremacoffeegarage.com.au/media/catalog/product/cache/1f5a9c70549b661653ba94d9b4c0b627/f/e/fellow-atmos-vacuum-bean-canister-glass-12l450g.jpg",
+            "Coffee Gator Stainless Canister" => "https://m.media-amazon.com/images/I/81ujt7wTDjL.jpg",
+
+            // Scales
+            "Hario V60 Drip Scale" => "https://m.media-amazon.com/images/I/51ljyAGEu1L.jpg",
+            "Acaia Pearl Coffee Scale" => "https://alternativebrewing.com.au/cdn/shop/files/Acaia-Pearl-2021-Brewing-Scale_c9e2ac04-cb17-4e42-be5e-c9073b411cef_600x.jpg?v=1698814016",
+
+            // Filters
+            "Hario V60 Paper Filters (100 pack)" => "https://m.media-amazon.com/images/I/61pFczU9XtL.jpg",
+            "Chemex Square Filters (100 pack)" => "https://www.dairybeanz.co.nz/cdn/shop/files/chemex-square-filters-white-100.jpg?v=1732928707&width=1445",
+
+            // Default Fallback
+            _ => "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?ixlib=rb-4.0.3&auto=format&fit=crop&w=1471&q=80"
+        };
     }
 }
