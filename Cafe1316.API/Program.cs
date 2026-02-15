@@ -15,12 +15,44 @@ var builder = WebApplication.CreateBuilder(args);
 // ===== 配置服务（Services） =====
 
 // 配置数据库
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-{
-    // 统一开发和生产环境，都使用 PostgreSQL (因为有 docker-compose 数据库)
-    // 如果您确实想在本地用 SQLite，请修改 appsettings.Development.json 并把这里改回 UseSqlite
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
+// 配置数据库
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    {
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+
+        // 优先使用 Render/Heroku 提供的 DATABASE_URL
+        if (!string.IsNullOrEmpty(databaseUrl))
+        {
+            connectionString = databaseUrl;
+        }
+
+        // 如果是 postgres:// 开头的 URI 格式 (Render 默认)，需要转换
+        if (!string.IsNullOrEmpty(connectionString) && connectionString.StartsWith("postgres://"))
+        {
+            try 
+            {
+                var databaseUri = new Uri(connectionString);
+                var userInfo = databaseUri.UserInfo.Split(':');
+                var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder
+                {
+                    Host = databaseUri.Host,
+                    Port = databaseUri.Port,
+                    Username = userInfo[0],
+                    Password = userInfo[1],
+                    Database = databaseUri.LocalPath.TrimStart('/')
+                };
+                connectionString = npgsqlBuilder.ToString();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error parsing connection URI: {ex.Message}");
+                // 转换失败则回退到原始字符串，让 Npgsql 抛出具体错误
+            }
+        }
+
+        options.UseNpgsql(connectionString);
+    });
 
 // 注册 Repositories
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
