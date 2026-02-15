@@ -2,18 +2,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Copy the solution file and project files
-COPY ["Cafe1316.slnx", "./"]
-COPY ["Cafe1316.API/Cafe1316.API.csproj", "Cafe1316.API/"]
-COPY ["Cafe1316.Application/Cafe1316.Application.csproj", "Cafe1316.Application/"]
-COPY ["Cafe1316.Domain/Cafe1316.Domain.csproj", "Cafe1316.Domain/"]
-COPY ["Cafe1316.Infrastructure/Cafe1316.Infrastructure.csproj", "Cafe1316.Infrastructure/"]
+# Copy everything immediately to ensure source files are present
+COPY . .
 
 # Restore dependencies
 RUN dotnet restore "Cafe1316.slnx"
-
-# Copy the remaining source code
-COPY . .
 
 # Build the project
 WORKDIR "/src/Cafe1316.API"
