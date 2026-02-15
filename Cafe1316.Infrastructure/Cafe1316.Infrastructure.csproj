@@ -20,11 +20,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <!-- Disable default items to workaround Render/SDK wildcard issues -->
+    <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Remove="**/*.resx" />
+    <!-- Manually include C# files -->
+    <Compile Include="**/*.cs" />
   </ItemGroup>
 
 </Project>
