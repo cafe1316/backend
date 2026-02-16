@@ -128,7 +128,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
+        policy.SetIsOriginAllowed(_ => true) // 允许任何来源 (解决 Vercel 域名被拦的问题)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -145,11 +145,14 @@ var app = builder.Build();
 
 // ===== 配置中间件管道（顺序很重要！） =====
 
-// 1. 全局异常处理（必须放在最前面，捕获所有后续中间件的异常）
+// 1. CORS (必须放在最前面，确保所有请求都包含 CORS 头)
+app.UseCors("AllowFrontend");
+
+// 2. 全局异常处理（必须放在最前面，捕获所有后续中间件的异常）
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // 2. CORS（必须在 Authentication 之前）
-app.UseCors("AllowFrontend");
+// Moved to top of pipeline
 
 // 3. Swagger（仅开发环境）
 if (app.Environment.IsDevelopment())
