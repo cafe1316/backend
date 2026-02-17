@@ -59,10 +59,12 @@ public class StripePaymentService : IPaymentService
         try
         {
             // 验证签名：确保是 Stripe 发来的
+            // 验证签名：确保是 Stripe 发来的
             var stripeEvent = EventUtility.ConstructEvent(
                 json, 
                 signature, 
-                _settings.WebhookSecret 
+                _settings.WebhookSecret,
+                throwOnApiVersionMismatch: false // 关键修复：忽略版本不匹配错误
             );
 
             // 1. 初始化我们要返回的 DTO
