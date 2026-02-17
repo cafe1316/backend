@@ -18,6 +18,12 @@ public class StripePaymentService : IPaymentService
     public StripePaymentService(IOptions<StripeSettings> settings)
     {
         _settings = settings.Value;
+        
+        // DEBUG LOGGING
+        Console.WriteLine($"--> Stripe Service Initialized.");
+        Console.WriteLine($"--> SecretKey Present: {!string.IsNullOrEmpty(_settings.SecretKey)}");
+        Console.WriteLine($"--> WebhookSecret Present: {!string.IsNullOrEmpty(_settings.WebhookSecret)}");
+
         // 关键：全局配置 Stripe API Key
         StripeConfiguration.ApiKey = _settings.SecretKey;
     }

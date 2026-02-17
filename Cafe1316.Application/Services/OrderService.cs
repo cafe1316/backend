@@ -143,6 +143,21 @@ public class OrderService : IOrderService
         return $"ORD{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(100, 999)}";
     }
 
+    public async Task<OrderDto?> GetOrderByCheckoutIntentIdAsync(Guid userId, Guid checkoutIntentId, CancellationToken cancellationToken = default)
+    {
+        var intent = await _checkoutIntentRepository.GetByUuidAsync(checkoutIntentId, cancellationToken);
+        
+        if (intent == null) return null;
+        if (intent.UserId != userId) return null; // Security check
+        
+        if (intent.CompletedOrderId.HasValue)
+        {
+            return await GetOrderByIdAsync(userId, intent.CompletedOrderId.Value, cancellationToken);
+        }
+        
+        return null;
+    }
+
     public async Task<CheckoutResponseDto> CreateCheckoutIntentAsync(
         Guid userId, 
         CreateCheckoutIntentDto dto, 
