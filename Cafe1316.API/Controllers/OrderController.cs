@@ -58,6 +58,20 @@ public class OrderController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("by-checkout/{checkoutId}")]
+    public async Task<ActionResult<OrderDto>> GetOrderByCheckoutId(
+        Guid checkoutId,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var result = await _orderService.GetOrderByCheckoutIntentIdAsync(userId, checkoutId, cancellationToken);
+        
+        if (result == null)
+            return NotFound(new { message = "Order not found or processing not complete" });
+        
+        return Ok(result);
+    }
+
     private Guid GetUserId()
     {
         var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
