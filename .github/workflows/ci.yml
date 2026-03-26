@@ -3,9 +3,9 @@ name: CI — Build & Test
 # 觸發條件：push 到 main 或任何 PR
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "dev" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "dev" ]
 
 jobs:
   test:
