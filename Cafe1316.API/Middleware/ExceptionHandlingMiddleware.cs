@@ -47,6 +47,11 @@ public class ExceptionHandlingMiddleware
                 errorResponse.Message = exception.Message;
                 errorResponse.StatusCode = response.StatusCode;
                 break;
+            case ForbiddenException:
+                response.StatusCode = (int)HttpStatusCode.Forbidden;
+                errorResponse.Message = exception.Message;
+                errorResponse.StatusCode = response.StatusCode;
+                break;
             default:
                 response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 errorResponse.Message = "An internal server error occurred.";
