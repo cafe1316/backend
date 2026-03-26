@@ -29,6 +29,7 @@ public class ProductRepository : IProductRepository
     {
         // return await = 异步返回
         return await _context.Products
+            .AsNoTracking()
             .Include(p=>p.Category)
             .Include(p=>p.Subcategory)
             .Include(p=>p.Images)
@@ -42,6 +43,7 @@ public class ProductRepository : IProductRepository
     public async Task<Product?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         return await _context.Products
+            .AsNoTracking()
             .Include(p=>p.Category)
             .Include(p=>p.Subcategory)
             .Include(p=>p.Images)
@@ -56,6 +58,7 @@ public class ProductRepository : IProductRepository
     {
         // 第 1 步：构建基础查询
         var query = _context.Products
+            .AsNoTracking()
             .Include(p=>p.Category)
             .Include(p=>p.Subcategory)
             .Include(p=>p.Images)
@@ -173,6 +176,7 @@ public class ProductRepository : IProductRepository
     public async Task<List<Product>> GetFeaturedProductsAsync(int limit = 10, CancellationToken cancellationToken = default)
     {
         return await _context.Products
+            .AsNoTracking()
             .Include(p=>p.Category)
             .Include(p=>p.Subcategory)
             .Include(p=>p.Images)

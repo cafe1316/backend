@@ -128,7 +128,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true) // 允许任何来源 (解决 Vercel 域名被拦的问题)
+        policy.WithOrigins(
+            "https://cafe1316.vercel.app",  // 生產環境
+            "http://localhost:5173",         // 本地 Vite 開發服務器
+            "http://localhost:3000"          // 備用
+        )
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
