@@ -10,21 +10,10 @@ COPY Cafe1316.Application/ Cafe1316.Application/
 COPY Cafe1316.Domain/ Cafe1316.Domain/
 COPY Cafe1316.Infrastructure/ Cafe1316.Infrastructure/
 
-# Safety: Remove any bin/obj folders that might have slipped in (to avoid .NET version mismatch)
-# Safety: Aggressively remove any bin/obj folders (including those with backslashes)
-RUN rm -rf */bin* */obj*
+# Safety: Remove any bin/obj folders to avoid .NET version mismatch
+RUN find . -name bin -o -name obj | xargs rm -rf
 
-# --- DIAGNOSTIC BLOCK ---
-RUN dotnet --info
-RUN ls -R /src/Cafe1316.Infrastructure
-RUN echo "--- Infrastructure CSPROJ Content ---" && cat /src/Cafe1316.Infrastructure/Cafe1316.Infrastructure.csproj
-# ------------------------
-
-# Restore dependencies
-RUN dotnet restore "Cafe1316.Infrastructure/Cafe1316.Infrastructure.csproj"
-# Try building Infrastructure explicitly with DETAILED logging to see why it misses files
-RUN dotnet build "Cafe1316.Infrastructure/Cafe1316.Infrastructure.csproj" -c Release -v detailed
-
+# Restore and build
 RUN dotnet restore "Cafe1316.API/Cafe1316.API.csproj"
 
 # Build the project
