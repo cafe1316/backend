@@ -17,18 +17,9 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <EnableDefaultItems>false</EnableDefaultItems>
-    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="*.cs" />
-    <Compile Include="Data/**/*.cs" />
-    <Compile Include="Repositories/**/*.cs" />
-    <Compile Include="Services/**/*.cs" />
-  </ItemGroup>
 
 </Project>

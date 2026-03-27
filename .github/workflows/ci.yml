@@ -17,11 +17,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. 安裝 .NET 10 SDK（與你的 Tests.csproj 目標框架一致）
-      - name: Setup .NET 10
+      # 2. 安裝 .NET 9 SDK（與你的 Tests.csproj 目標框架一致）
+      - name: Setup .NET 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '9.0.x'
 
       # 3. 還原所有 NuGet 套件（Moq, FluentAssertions, xUnit...）
       - name: Restore dependencies
