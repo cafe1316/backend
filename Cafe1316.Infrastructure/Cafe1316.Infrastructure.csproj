@@ -21,6 +21,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <EnableDefaultItems>false</EnableDefaultItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,7 +29,6 @@
     <Compile Include="Data/**/*.cs" />
     <Compile Include="Repositories/**/*.cs" />
     <Compile Include="Services/**/*.cs" />
-    <EmbeddedResource Remove="**/*.resx" />
   </ItemGroup>
 
 </Project>
