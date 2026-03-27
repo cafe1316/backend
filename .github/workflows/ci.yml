@@ -1,6 +1,6 @@
 name: CI — Build & Test
 
-# 觸發條件：push 到 main 或任何 PR
+# 觸發條件：push 到 dev 或任何 PR
 on:
   push:
     branches: [ "dev" ]
@@ -10,36 +10,31 @@ on:
 jobs:
   test:
     name: Run Unit Tests
-    runs-on: ubuntu-latest   # GitHub 的免費 Linux 虛擬機
+    runs-on: ubuntu-latest
 
     steps:
       # 1. 把代碼拉下來
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. 安裝 .NET 9 SDK（與你的 Tests.csproj 目標框架一致）
+      # 2. 安裝 .NET 9 SDK
       - name: Setup .NET 9
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      # 3. 還原所有 NuGet 套件（Moq, FluentAssertions, xUnit...）
-      - name: Restore dependencies
-        run: dotnet restore
-        working-directory: ./
+      # 3. 只還原 Tests 項目及其依賴（Domain, Application）
+      # 不還原 API，避免 Microsoft.NET.Sdk.Web 的 glob bug
+      - name: Restore Test project
+        run: dotnet restore Cafe1316.Tests/Cafe1316.Tests.csproj
 
-      # 4. 編譯整個 Solution
-      - name: Build
-        run: dotnet build --no-restore --configuration Release
-        working-directory: ./
+      # 4. 只 Build Tests 項目（自動帶出 Domain + Application）
+      - name: Build Test project
+        run: dotnet build Cafe1316.Tests/Cafe1316.Tests.csproj --no-restore --configuration Release
 
       # 5. ⭐ 核心：跑所有測試（必須全部通過才繼續）
       - name: Run tests
-        run: dotnet test --no-build --configuration Release --verbosity normal
-        working-directory: ./
-        # 如果任何測試失敗，這個 step 返回非零退出碼
-        # GitHub Actions 會標記整個 workflow 為 ❌ 失敗
-        # Render 的 auto-deploy 不受阻（見下方說明）
+        run: dotnet test Cafe1316.Tests/Cafe1316.Tests.csproj --no-build --configuration Release --verbosity normal
 
   # ---- 可選：生產部署step（配置 Render Deploy Hook 後啟用）----
   # deploy:
