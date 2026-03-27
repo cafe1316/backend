@@ -22,8 +22,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Cafe1316.Application\Cafe1316.Application.csproj" />
-    <ProjectReference Include="..\Cafe1316.Domain\Cafe1316.Domain.csproj" />
+    <ProjectReference Include="../Cafe1316.Application/Cafe1316.Application.csproj" />
+    <ProjectReference Include="../Cafe1316.Domain/Cafe1316.Domain.csproj" />
   </ItemGroup>
 
 </Project>

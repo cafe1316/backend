@@ -1,8 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+  </PropertyGroup>
+
   <ItemGroup>
-    <ProjectReference Include="../Cafe1316.Domain/Cafe1316.Domain.csproj" />
-    <ProjectReference Include="../Cafe1316.Application/Cafe1316.Application.csproj" />
+    <ProjectReference Include="..\Cafe1316.Domain\Cafe1316.Domain.csproj" />
+    <ProjectReference Include="..\Cafe1316.Application\Cafe1316.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -15,12 +22,5 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="Stripe.net" Version="43.13.0" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
-  </PropertyGroup>
 
 </Project>
