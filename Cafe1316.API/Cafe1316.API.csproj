@@ -5,8 +5,30 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>49c2f5c4-1e6c-46f0-82d3-ee2f0a57dc67</UserSecretsId>
-    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <!-- Disable default items to bypass the SDK glob-expansion bug on Linux -->
+    <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
+
+  <!-- Explicit source file list — avoids **/*.cs glob that breaks on some Linux SDK versions -->
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Controllers\AuthController.cs" />
+    <Compile Include="Controllers\CartController.cs" />
+    <Compile Include="Controllers\CategoriesController.cs" />
+    <Compile Include="Controllers\OrderController.cs" />
+    <Compile Include="Controllers\PaymentsController.cs" />
+    <Compile Include="Controllers\ProductsController.cs" />
+    <Compile Include="Controllers\TestOrderController.cs" />
+    <Compile Include="Middleware\ExceptionHandlingMiddleware.cs" />
+  </ItemGroup>
+
+  <!-- Include appsettings & property files as content -->
+  <ItemGroup>
+    <Content Include="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Include="Properties\launchSettings.json" Condition="Exists('Properties\launchSettings.json')" />
+  </ItemGroup>
 
   <!-- Required for ASP.NET Core Web API without the Web SDK -->
   <ItemGroup>
@@ -31,8 +53,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Cafe1316.Application/Cafe1316.Application.csproj" />
-    <ProjectReference Include="../Cafe1316.Infrastructure/Cafe1316.Infrastructure.csproj" />
+    <ProjectReference Include="..\Cafe1316.Application\Cafe1316.Application.csproj" />
+    <ProjectReference Include="..\Cafe1316.Infrastructure\Cafe1316.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
