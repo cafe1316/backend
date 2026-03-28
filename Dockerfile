@@ -2,26 +2,20 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copy everything explicitly to ensure no folder is missed
-# Copy everything explicitly to ensure no folder is missed
 COPY Cafe1316.slnx ./
 COPY Cafe1316.API/ Cafe1316.API/
 COPY Cafe1316.Application/ Cafe1316.Application/
 COPY Cafe1316.Domain/ Cafe1316.Domain/
 COPY Cafe1316.Infrastructure/ Cafe1316.Infrastructure/
 
-# Safety: Remove any bin/obj folders to avoid .NET version mismatch
+# Safety: Remove any bin/obj folders to avoid stale artifacts
 RUN find . -name bin -o -name obj | xargs rm -rf
 
-# Restore and build
+# Restore NuGet packages
 RUN dotnet restore "Cafe1316.API/Cafe1316.API.csproj"
 
-# Build the project
+# Publish directly (build is implicit in publish, skipping separate build step)
 WORKDIR "/src/Cafe1316.API"
-RUN dotnet build "Cafe1316.API.csproj" -c Release -o /app/build
-
-# Publish the project
-FROM build AS publish
 RUN dotnet publish "Cafe1316.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Use the official ASP.NET Core runtime image
@@ -30,5 +24,5 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "Cafe1316.API.dll"]
