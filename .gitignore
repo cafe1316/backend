@@ -1,6 +1,9 @@
 # C# Build outputs
 bin/
 obj/
+**/bin/
+**/obj/
+bin\\*/
 *.dll
 *.exe
 *.pdb
