@@ -1,0 +1,12 @@
+<!-- This file is evaluated BEFORE the SDK props are imported.
+     Setting these here prevents the SDK from adding item groups
+     for file types not present in this project (the SDK bug that passes
+     literal glob strings to CSC when the glob matches nothing). -->
+<Project>
+  <PropertyGroup>
+    <EnableDefaultPageItems>false</EnableDefaultPageItems>
+    <EnableDefaultRazorItems>false</EnableDefaultRazorItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <EnableDefaultContentItems>false</EnableDefaultContentItems>
+  </PropertyGroup>
+</Project>
