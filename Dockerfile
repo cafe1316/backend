@@ -8,8 +8,9 @@ COPY Cafe1316.Application/ Cafe1316.Application/
 COPY Cafe1316.Domain/ Cafe1316.Domain/
 COPY Cafe1316.Infrastructure/ Cafe1316.Infrastructure/
 
-# Safety: Remove any bin/obj folders to avoid stale artifacts
-RUN find . -name bin -o -name obj | xargs rm -rf
+# Safety: Remove ALL bin/obj artifacts including backslash-named directories
+RUN find . -type d \( -name "bin" -o -name "obj" \) -exec rm -rf {} + 2>/dev/null || true && \
+    find . -maxdepth 4 -type d -name "bin*" -exec rm -rf {} + 2>/dev/null || true
 
 # Restore NuGet packages
 RUN dotnet restore "Cafe1316.API/Cafe1316.API.csproj"
