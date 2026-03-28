@@ -5,8 +5,17 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>49c2f5c4-1e6c-46f0-82d3-ee2f0a57dc67</UserSecretsId>
+    <!-- Disable ALL default item inclusions that cause glob pass-through bugs on Linux SDK -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <EnableDefaultPageItems>false</EnableDefaultPageItems>
+    <EnableDefaultRazorItems>false</EnableDefaultRazorItems>
   </PropertyGroup>
+
+  <!-- Explicit MSBuild-level glob — works correctly on all platforms -->
+  <ItemGroup>
+    <Compile Include="**/*.cs" Exclude="obj/**/*.cs;bin/**/*.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Google.Apis.Auth" Version="1.67.0" />
@@ -26,8 +35,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Cafe1316.Application\Cafe1316.Application.csproj" />
-    <ProjectReference Include="..\Cafe1316.Infrastructure\Cafe1316.Infrastructure.csproj" />
+    <ProjectReference Include="../Cafe1316.Application/Cafe1316.Application.csproj" />
+    <ProjectReference Include="../Cafe1316.Infrastructure/Cafe1316.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
