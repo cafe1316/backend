@@ -1390,7 +1390,7 @@ public static class DbInitializer
             "Colombia Decaf" => "https://owleyecoffee.com/cdn/shop/files/ColombiaDecaf.jpg?v=1706635101",
             
             // Guatemala
-            "Guatemala Antigua" => "https://coffeehero.com.au/cdn/shop/articles/2a0736c4a49458d2a920231ccef7eddb_2048x2048.jpg?v=1625059744",
+            "Guatemala Antigua" => "https://brownbear.co/cdn/shop/products/guatemala-antigua-coffee-strength-3-medium-roastbrown-bear-coffeebrowbgua8227-758937.jpg?v=1762957783",
             "Guatemala Huehuetenango" => "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTS1wxOB_r1mrqB9JGLQGeS31GSazhuDuIo1g&s",
             "Guatemala Atitlán" => "https://espressocoffeeguide.com/wp-content/uploads/2010/05/guatemalaorganic-coffee-beans.jpg",
             "Guatemala Cobán" => "https://m.media-amazon.com/images/I/81Hr7hiZrOL.jpg",
@@ -1445,7 +1445,7 @@ public static class DbInitializer
             "NotNeutral Lino Mug" => "https://m.media-amazon.com/images/I/31+ZrUIdS2L.jpg",
 
             // Storage
-            "Airscape Coffee Canister" => "https://alternativebrewing.com.au/cdn/shop/files/Airscape-Classic-Matte-Blue-7_-Small_600x600_018135f0-8a22-4428-878e-860a7e0e7cb0_600x.webp?v=1751520760",
+            "Airscape Coffee Canister" => "https://industrybeans.com/cdn/shop/files/airscape-vacuum-seal-cannister-large.png?v=1729649978",
             "Fellow Atmos Vacuum Canister" => "https://cremacoffeegarage.com.au/media/catalog/product/cache/1f5a9c70549b661653ba94d9b4c0b627/f/e/fellow-atmos-vacuum-bean-canister-glass-12l450g.jpg",
             "Coffee Gator Stainless Canister" => "https://m.media-amazon.com/images/I/81ujt7wTDjL.jpg",
 
