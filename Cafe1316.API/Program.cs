@@ -4,6 +4,7 @@ using Cafe1316.Application.Services;
 using Cafe1316.Application.Interfaces;
 using Cafe1316.Infrastructure.Repositories;
 using Cafe1316.Infrastructure.Services; // 新增：用于 StripePaymentService
+using Cafe1316.Infrastructure.Transactions;
 using Cafe1316.API.Middleware;
 using Cafe1316.Application.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -82,6 +83,7 @@ builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddScoped<ITransactionRunner, EfCoreTransactionRunner>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<ICheckoutIntentRepository, CheckoutIntentRepository>();
 
@@ -95,12 +97,39 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IPaymentService, StripePaymentService>();
 
 // 配置 Google OAuth 和 JWT Settings
-builder.Services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuth"));
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+builder.Services
+    .AddOptions<GoogleAuthSettings>()
+    .Bind(builder.Configuration.GetSection("GoogleAuth"))
+    .Validate(
+        settings =>
+            !string.IsNullOrWhiteSpace(settings.ClientId) &&
+            !settings.ClientId.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase),
+        "GoogleAuth:ClientId must be configured with the Cafe1316 Google web client ID.")
+    .ValidateOnStart();
+builder.Services
+    .AddOptions<JwtSettings>()
+    .Bind(builder.Configuration.GetSection("JwtSettings"))
+    .Validate(
+        settings =>
+            !string.IsNullOrWhiteSpace(settings.Secret) &&
+            Encoding.UTF8.GetByteCount(settings.Secret) >= 32 &&
+            !settings.Secret.Contains("PLACEHOLDER", StringComparison.OrdinalIgnoreCase),
+        "JwtSettings:Secret must be a non-placeholder secret of at least 32 bytes.")
+    .Validate(
+        settings => !string.IsNullOrWhiteSpace(settings.Issuer),
+        "JwtSettings:Issuer is required.")
+    .Validate(
+        settings => !string.IsNullOrWhiteSpace(settings.Audience),
+        "JwtSettings:Audience is required.")
+    .Validate(
+        settings => settings.ExpiryMinutes is > 0 and <= 1440,
+        "JwtSettings:ExpiryMinutes must be between 1 and 1440 minutes.")
+    .ValidateOnStart();
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
 
 // 配置 JWT 认证
-var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
+    ?? throw new InvalidOperationException("JwtSettings configuration section is missing.");
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

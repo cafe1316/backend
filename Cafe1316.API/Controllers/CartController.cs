@@ -35,10 +35,18 @@ public class CartController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult<CartItemDto>> UpdateCartItem(int id, [FromBody] AddToCartDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<CartItemDto>> UpdateCartItem(int id, [FromBody] UpdateCartItemDto dto, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
         var result = await _cartService.UpdateCartItemAsync(userId, id, dto, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("merge")]
+    public async Task<ActionResult<MergeCartResultDto>> MergeGuestCart([FromBody] MergeCartDto dto, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var result = await _cartService.MergeGuestCartAsync(userId, dto, cancellationToken);
         return Ok(result);
     }
 

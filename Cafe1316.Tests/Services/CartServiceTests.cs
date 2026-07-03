@@ -13,13 +13,21 @@ public class CartServiceTests
     // ── Shared mocks and SUT ──────────────────────────────────────────────────
     private readonly Mock<ICartRepository>    _cartRepoMock    = new();
     private readonly Mock<IProductRepository> _productRepoMock = new();
+    private readonly Mock<ITransactionRunner> _transactionRunnerMock = new();
     private readonly CartService              _sut;
 
     private static readonly Guid UserId = Guid.NewGuid();
 
     public CartServiceTests()
     {
-        _sut = new CartService(_cartRepoMock.Object, _productRepoMock.Object);
+        _transactionRunnerMock
+            .Setup(r => r.ExecuteAsync(
+                It.IsAny<Func<CancellationToken, Task<MergeCartResultDto>>>(),
+                It.IsAny<CancellationToken>()))
+            .Returns((Func<CancellationToken, Task<MergeCartResultDto>> operation, CancellationToken token) =>
+                operation(token));
+
+        _sut = new CartService(_cartRepoMock.Object, _productRepoMock.Object, _transactionRunnerMock.Object);
     }
 
     // ── Helper: build a minimal Product with navigation collections ──────────
@@ -73,6 +81,28 @@ public class CartServiceTests
         // ASSERT
         await act.Should().ThrowAsync<NotFoundException>()
             .WithMessage("*99*");
+    }
+
+    [Fact]
+    public async Task AddToCartAsync_QuantityBelowOne_ThrowsBadRequestException()
+    {
+        var dto = new AddToCartDto { ProductId = 1, Quantity = 0 };
+
+        Func<Task> act = () => _sut.AddToCartAsync(UserId, dto);
+
+        await act.Should().ThrowAsync<BadRequestException>()
+            .WithMessage("*at least 1*");
+    }
+
+    [Fact]
+    public async Task UpdateCartItemAsync_QuantityBelowOne_ThrowsBadRequestException()
+    {
+        var dto = new UpdateCartItemDto { Quantity = 0 };
+
+        Func<Task> act = () => _sut.UpdateCartItemAsync(UserId, 1, dto);
+
+        await act.Should().ThrowAsync<BadRequestException>()
+            .WithMessage("*at least 1*");
     }
 
     // ========================================================================
@@ -215,5 +245,78 @@ public class CartServiceTests
 
         result.ProductId.Should().Be(4);
         result.Quantity.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task MergeGuestCartAsync_MergesValidItemsAndReturnsRejectedItems()
+    {
+        var validProduct = MakeProduct(id: 1, stock: 5);
+        var persistedItems = new List<CartItem>();
+
+        _productRepoMock
+            .Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(validProduct);
+        _productRepoMock
+            .Setup(r => r.GetByIdAsync(99, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Product?)null);
+
+        _cartRepoMock
+            .Setup(r => r.GetByUserAndProductAsync(UserId, 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CartItem?)null);
+        _cartRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<CartItem>(), It.IsAny<CancellationToken>()))
+            .Returns((CartItem item, CancellationToken _) =>
+            {
+                item.Id = 50;
+                item.Product = validProduct;
+                persistedItems.Add(item);
+                return Task.FromResult(item);
+            });
+        _cartRepoMock
+            .Setup(r => r.GetUserCartItemsAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(persistedItems);
+
+        var result = await _sut.MergeGuestCartAsync(UserId, new MergeCartDto
+        {
+            Items =
+            [
+                new AddToCartDto { ProductId = 1, Quantity = 2 },
+                new AddToCartDto { ProductId = 99, Quantity = 1 }
+            ]
+        });
+
+        result.Cart.Items.Should().ContainSingle(item => item.ProductId == 1 && item.Quantity == 2);
+        result.RejectedItems.Should().ContainSingle(item =>
+            item.ProductId == 99 && item.Reason == "Unavailable");
+    }
+
+    [Fact]
+    public async Task MergeGuestCartAsync_InsufficientStockRejectsOnlyThatItem()
+    {
+        var product = MakeProduct(id: 2, stock: 2);
+
+        _productRepoMock
+            .Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(product);
+        _cartRepoMock
+            .Setup(r => r.GetByUserAndProductAsync(UserId, 2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CartItem?)null);
+        _cartRepoMock
+            .Setup(r => r.GetUserCartItemsAsync(UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<CartItem>());
+
+        var result = await _sut.MergeGuestCartAsync(UserId, new MergeCartDto
+        {
+            Items = [new AddToCartDto { ProductId = 2, Quantity = 5 }]
+        });
+
+        result.Cart.Items.Should().BeEmpty();
+        result.RejectedItems.Should().ContainSingle(item =>
+            item.ProductId == 2 &&
+            item.Reason == "InsufficientStock" &&
+            item.AvailableQuantity == 2);
+        _cartRepoMock.Verify(
+            r => r.AddAsync(It.IsAny<CartItem>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }

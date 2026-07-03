@@ -3,6 +3,9 @@ using Cafe1316.Application.DTOs;
 using Cafe1316.Application.Mappings;
 using Cafe1316.Domain.Entities;
 using Google.Apis.Auth;
+using Cafe1316.Application.Settings;
+using Cafe1316.Domain.Exceptions;
+using Microsoft.Extensions.Options;
 
 namespace Cafe1316.Application.Services;
 
@@ -10,17 +13,39 @@ public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
     private readonly IJwtService _jwtService;
+    private readonly GoogleAuthSettings _googleAuthSettings;
 
-    public AuthService(IUserRepository userRepository, IJwtService jwtService)
+    public AuthService(
+        IUserRepository userRepository,
+        IJwtService jwtService,
+        IOptions<GoogleAuthSettings> googleAuthOptions)
     {
         _userRepository = userRepository;
         _jwtService = jwtService;
+        _googleAuthSettings = googleAuthOptions.Value;
     }
 
     public async Task<AuthResponseDto> GoogleLoginAsync(string idToken)
     {
+        if (string.IsNullOrWhiteSpace(idToken))
+        {
+            throw new BadRequestException("Google ID token is required.");
+        }
+
         // 1. 验证 Google ID Token
-        var payload = await GoogleJsonWebSignature.ValidateAsync(idToken);
+        var validationSettings = new GoogleJsonWebSignature.ValidationSettings
+        {
+            Audience = new[] { _googleAuthSettings.ClientId }
+        };
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            payload = await GoogleJsonWebSignature.ValidateAsync(idToken, validationSettings);
+        }
+        catch (InvalidJwtException)
+        {
+            throw new UnauthorizedException("Google sign-in token is invalid or expired.");
+        }
 
         // 2. 查找或创建用户
         var user = await _userRepository.GetByEmailAsync(payload.Email);

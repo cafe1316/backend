@@ -8,10 +8,15 @@ public class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
-    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+    private readonly IHostEnvironment _environment;
+    public ExceptionHandlingMiddleware(
+        RequestDelegate next,
+        ILogger<ExceptionHandlingMiddleware> logger,
+        IHostEnvironment environment)
     {
         _next = next;
         _logger = logger;
+        _environment = environment;
     }
     public async Task InvokeAsync(HttpContext context)
     {
@@ -56,7 +61,10 @@ public class ExceptionHandlingMiddleware
                 response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 errorResponse.Message = "An internal server error occurred.";
                 errorResponse.StatusCode = response.StatusCode;
-                errorResponse.Details = exception.Message;
+                if (_environment.IsDevelopment())
+                {
+                    errorResponse.Details = exception.Message;
+                }
                 break;
         }
         var result = JsonSerializer.Serialize(errorResponse, new JsonSerializerOptions

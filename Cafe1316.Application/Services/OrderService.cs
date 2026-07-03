@@ -211,7 +211,12 @@ public class OrderService : IOrderService
         {
             ClientSecret = clientSecret,
             PublishableKey = _stripeSettings.PublishableKey,
-            CheckoutIntentId = intent.Uuid.ToString()
+            CheckoutIntentId = intent.Uuid.ToString(),
+            SubtotalCents = intent.SubtotalCents,
+            ShippingFeeCents = intent.ShippingFeeCents,
+            TaxCents = intent.TaxCents,
+            GrandTotalCents = intent.GrandTotalCents,
+            Currency = intent.Currency
         };
     }
         
@@ -294,4 +299,4 @@ public class OrderService : IOrderService
         return order.ToDto();
 
     }
-}   
+}
