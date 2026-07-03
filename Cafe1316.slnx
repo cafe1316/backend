@@ -3,4 +3,5 @@
   <Project Path="Cafe1316.Application/Cafe1316.Application.csproj" />
   <Project Path="Cafe1316.Domain/Cafe1316.Domain.csproj" />
   <Project Path="Cafe1316.Infrastructure/Cafe1316.Infrastructure.csproj" />
+  <Project Path="Cafe1316.Tests/Cafe1316.Tests.csproj" />
 </Solution>

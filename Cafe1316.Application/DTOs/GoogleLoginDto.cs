@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Cafe1316.Application.DTOs;
 
 /// <summary>
@@ -6,5 +8,6 @@ namespace Cafe1316.Application.DTOs;
 /// </summary>
 public class GoogleLoginDto
 {
+    [Required]
     public string IdToken { get; set; } = string.Empty;
 }

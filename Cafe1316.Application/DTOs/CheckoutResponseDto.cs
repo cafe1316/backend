@@ -11,4 +11,9 @@ public class CheckoutResponseDto
     //我们需要知道这个 pi_123 对应的是我们数据库里的哪笔交易。
     //这个 ID 会在前端支付时作为 metadata 传给 Stripe，最后 Stripe Webhook 回调时再把这个 ID 带回来给我们。这就完成了一个闭环！
     public string CheckoutIntentId { get; set; } = string.Empty;
+    public int SubtotalCents { get; set; }
+    public int ShippingFeeCents { get; set; }
+    public int TaxCents { get; set; }
+    public int GrandTotalCents { get; set; }
+    public string Currency { get; set; } = string.Empty;
 }

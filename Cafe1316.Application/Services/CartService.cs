@@ -10,17 +10,27 @@ public class CartService : ICartService
 {
     private readonly ICartRepository _cartRepository;
     private readonly IProductRepository _productRepository;
+    private readonly ITransactionRunner _transactionRunner;
 
-    public CartService(ICartRepository cartRepository, IProductRepository productRepository)
+    public CartService(
+        ICartRepository cartRepository,
+        IProductRepository productRepository,
+        ITransactionRunner transactionRunner)
     {
         _cartRepository = cartRepository;
         _productRepository = productRepository;
+        _transactionRunner = transactionRunner;
     }
 
     public async Task<CartItemDto> AddToCartAsync(Guid userId, AddToCartDto dto, CancellationToken cancellationToken = default)
     {
         var productId = dto.ProductId;
         var quantity = dto.Quantity;
+
+        if (quantity < 1)
+        {
+            throw new BadRequestException("Quantity must be at least 1.");
+        }
 
         var product = await _productRepository.GetByIdAsync(productId, cancellationToken) ?? throw new NotFoundException($"Product {productId} not found");
 
@@ -62,8 +72,13 @@ public class CartService : ICartService
     }
 
 
-    public async Task<CartItemDto> UpdateCartItemAsync(Guid userId, int CartItemId, AddToCartDto dto, CancellationToken cancellationToken = default)
+    public async Task<CartItemDto> UpdateCartItemAsync(Guid userId, int CartItemId, UpdateCartItemDto dto, CancellationToken cancellationToken = default)
     {
+        if (dto.Quantity < 1)
+        {
+            throw new BadRequestException("Quantity must be at least 1.");
+        }
+
         var item = await _cartRepository.GetByIdAsync(CartItemId, cancellationToken) 
                 ?? throw new NotFoundException($"Cart item {CartItemId} not found");
 
@@ -83,6 +98,105 @@ public class CartService : ICartService
         await _cartRepository.UpdateAsync(item, cancellationToken);
         return item.ToDto();
     }
+
+    public async Task<MergeCartResultDto> MergeGuestCartAsync(Guid userId, MergeCartDto dto, CancellationToken cancellationToken = default)
+    {
+        if (dto.Items is null || dto.Items.Count == 0)
+        {
+            return new MergeCartResultDto
+            {
+                Cart = await GetUserCartAsync(userId, cancellationToken)
+            };
+        }
+
+        return await _transactionRunner.ExecuteAsync(async transactionCancellationToken =>
+        {
+            var rejectedItems = new List<RejectedCartItemDto>();
+
+            foreach (var item in dto.Items)
+            {
+                var rejection = await TryMergeGuestItemAsync(userId, item, transactionCancellationToken);
+                if (rejection != null)
+                {
+                    rejectedItems.Add(rejection);
+                }
+            }
+
+            return new MergeCartResultDto
+            {
+                Cart = await GetUserCartAsync(userId, transactionCancellationToken),
+                RejectedItems = rejectedItems
+            };
+        }, cancellationToken);
+    }
+
+    private async Task<RejectedCartItemDto?> TryMergeGuestItemAsync(
+        Guid userId,
+        AddToCartDto item,
+        CancellationToken cancellationToken)
+    {
+        if (item.Quantity < 1)
+        {
+            return Reject(item, null, "InvalidQuantity", "The requested quantity is invalid.");
+        }
+
+        var product = await _productRepository.GetByIdAsync(item.ProductId, cancellationToken);
+        if (product == null)
+        {
+            return Reject(item, null, "Unavailable", "This product is no longer available.");
+        }
+
+        var existing = await _cartRepository.GetByUserAndProductAsync(userId, item.ProductId, cancellationToken);
+        var currentQuantity = existing?.Quantity ?? 0;
+        var availableQuantity = Math.Max(product.Stock - currentQuantity, 0);
+
+        if (currentQuantity + item.Quantity > product.Stock)
+        {
+            var message = availableQuantity == 0
+                ? "No additional quantity is currently available."
+                : $"Only {availableQuantity} more can be added.";
+
+            return Reject(
+                item,
+                product.Name,
+                product.Stock == 0 ? "OutOfStock" : "InsufficientStock",
+                message,
+                availableQuantity);
+        }
+
+        if (existing != null)
+        {
+            existing.Quantity = currentQuantity + item.Quantity;
+            await _cartRepository.UpdateAsync(existing, cancellationToken);
+        }
+        else
+        {
+            await _cartRepository.AddAsync(new CartItem
+            {
+                UserId = userId,
+                ProductId = item.ProductId,
+                Quantity = item.Quantity,
+                AddedAt = DateTime.UtcNow
+            }, cancellationToken);
+        }
+
+        return null;
+    }
+
+    private static RejectedCartItemDto Reject(
+        AddToCartDto item,
+        string? productName,
+        string reason,
+        string message,
+        int? availableQuantity = null) => new()
+    {
+        ProductId = item.ProductId,
+        ProductName = productName,
+        RequestedQuantity = item.Quantity,
+        AvailableQuantity = availableQuantity,
+        Reason = reason,
+        Message = message
+    };
 
     public async Task DeleteCartItemAsync(Guid userId, int CartItemId, CancellationToken cancellationToken = default)
     {
@@ -109,4 +223,3 @@ public class CartService : ICartService
     }
 
 }
-
