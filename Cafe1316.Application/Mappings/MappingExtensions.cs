@@ -138,6 +138,9 @@ public static class MappingExtensions
     public static CartItemDto ToDto(this CartItem cartItem)
     {
         var price = cartItem.Product.PriceCents / 100m;
+        var isAvailable = cartItem.Product.IsActive &&
+            cartItem.Product.Stock >= cartItem.Quantity &&
+            cartItem.Quantity > 0;
         return new CartItemDto
         {
             Id = cartItem.Id,
@@ -151,6 +154,12 @@ public static class MappingExtensions
             Currency = cartItem.Product.Currency,
             Quantity = cartItem.Quantity,
             StockStatus = GetStockStatus(cartItem.Product.Stock),
+            IsAvailable = isAvailable,
+            AvailabilityMessage = isAvailable
+                ? null
+                : !cartItem.Product.IsActive
+                    ? "This product is no longer available."
+                    : "The requested quantity is no longer in stock.",
             Subtotal = price * cartItem.Quantity,
             AddedAt = cartItem.AddedAt
         };
@@ -166,7 +175,8 @@ public static class MappingExtensions
             Items = dtos,
             TotalItems = dtos.Count,
             TotalAmount = total,
-            Currency = "AUD"
+            Currency = "AUD",
+            HasUnavailableItems = dtos.Any(dto => !dto.IsAvailable)
         };
     }
 

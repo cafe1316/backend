@@ -41,6 +41,7 @@ public class OrderRepository : IOrderRepository
         var orders = await query
                 .Include(o => o.OrderItems)
                 .OrderByDescending(o => o.CreatedAt)// 最新订单优先
+                .ThenByDescending(o => o.Id)
                 .Skip((page-1) * pageSize)// 跳过前面的
                 .Take(pageSize)// 取这一页的
                 .ToListAsync(cancellationToken);

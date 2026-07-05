@@ -38,4 +38,8 @@ public interface IProductRepository
     Task<List<Product>> GetFeaturedProductsAsync(
         int limit = 10,
         CancellationToken cancellationToken = default);
+
+    Task<bool> TryDecreaseStockAsync(
+        IReadOnlyDictionary<int, int> quantities,
+        CancellationToken cancellationToken = default);
 }

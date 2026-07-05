@@ -21,6 +21,8 @@ public class CartItemDto
     // 数量和库存
     public int Quantity { get; set; } = 1;
     public string StockStatus { get; set; } = "InStock";
+    public bool IsAvailable { get; set; }
+    public string? AvailabilityMessage { get; set; }
 
     // 小计（后端计算）
     public decimal Subtotal { get; set; } = 0;

@@ -15,18 +15,24 @@ public class OrderService : IOrderService
     private readonly IOrderRepository _orderRepository;
     private readonly ICartRepository _cartRepository;
     private readonly ICheckoutIntentRepository _checkoutIntentRepository;
+    private readonly IProductRepository _productRepository;
+    private readonly ITransactionRunner _transactionRunner;
     private readonly IPaymentService _paymentService;
     private readonly StripeSettings _stripeSettings;
 
     public OrderService(IOrderRepository orderRepository,
         ICartRepository cartRepository,
-        ICheckoutIntentRepository checkoutIntentRepository,  
+        ICheckoutIntentRepository checkoutIntentRepository,
+        IProductRepository productRepository,
+        ITransactionRunner transactionRunner,
         IPaymentService paymentService,                      
         IOptions<StripeSettings> stripeSettings)
     {
         _orderRepository = orderRepository;
         _cartRepository = cartRepository;
         _checkoutIntentRepository = checkoutIntentRepository;
+        _productRepository = productRepository;
+        _transactionRunner = transactionRunner;
         _paymentService = paymentService;
         _stripeSettings = stripeSettings.Value;
     }
@@ -126,6 +132,11 @@ public class OrderService : IOrderService
         OrderStatus? status,
         CancellationToken cancellationToken = default)
     {
+        if (page < 1)
+            throw new BadRequestException("Page must be at least 1.");
+        if (pageSize is < 1 or > 100)
+            throw new BadRequestException("Page size must be between 1 and 100.");
+
         var(orders, totalCount) = await _orderRepository.GetUserOrdersAsync(userId, page, pageSize, status, cancellationToken);
 
         return new PaginatedResult<OrderDto>
@@ -139,8 +150,7 @@ public class OrderService : IOrderService
 
     private string GenerateOrderNumber()
     {
-        // 格式: ORD20260210143523234
-        return $"ORD{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(100, 999)}";
+        return $"ORD{DateTime.UtcNow:yyyyMMddHHmmssfff}{Guid.NewGuid():N}"[..32];
     }
 
     public async Task<OrderDto?> GetOrderByCheckoutIntentIdAsync(Guid userId, Guid checkoutIntentId, CancellationToken cancellationToken = default)
@@ -163,16 +173,33 @@ public class OrderService : IOrderService
         CreateCheckoutIntentDto dto, 
         CancellationToken cancellationToken = default)
     {
+        ValidateCheckoutRequest(dto);
+
         // 步骤1: 获取购物车
         var cartItems = await _cartRepository.GetUserCartItemsAsync(userId, cancellationToken);
         if (!cartItems.Any())
-            throw new BadRequestException("Cart is Empty");
+            throw new BadRequestException("Cart is empty.");
+
+        var unavailableItem = cartItems.FirstOrDefault(item =>
+            !item.Product.IsActive ||
+            item.Quantity < 1 ||
+            item.Product.Stock < item.Quantity);
+        if (unavailableItem != null)
+            throw new BadRequestException(
+                $"{unavailableItem.Product.Name} is unavailable or does not have enough stock.");
         
         // 步骤2: 计算金额（模拟运费和税费）
-        var subtotalCents = cartItems.Sum(item => item.Product.PriceCents * item.Quantity);
+        var subtotalLong = cartItems.Sum(item => (long)item.Product.PriceCents * item.Quantity);
+        if (subtotalLong <= 0 || subtotalLong > int.MaxValue)
+            throw new BadRequestException("Cart total is outside the supported range.");
+
+        var subtotalCents = (int)subtotalLong;
         var shippingFeeCents = 1000; // 固定 $10 AUD 运费
-        var taxCents = (int)(subtotalCents * 0.1); // 10% GST
-        var grandTotalCents = subtotalCents + shippingFeeCents + taxCents;
+        var taxCents = subtotalCents / 10; // 10% GST
+        var grandTotalLong = (long)subtotalCents + shippingFeeCents + taxCents;
+        if (grandTotalLong > int.MaxValue)
+            throw new BadRequestException("Checkout total is outside the supported range.");
+        var grandTotalCents = (int)grandTotalLong;
 
         // 步骤3: 创建 CheckoutIntent 实体（快照）
         var intent = new CheckoutIntent
@@ -219,47 +246,100 @@ public class OrderService : IOrderService
             Currency = intent.Currency
         };
     }
+
+    private static void ValidateCheckoutRequest(CreateCheckoutIntentDto dto)
+    {
+        if (dto?.ShippingAddress == null)
+            throw new BadRequestException("Shipping address is required.");
+
+        var address = dto.ShippingAddress;
+        if (string.IsNullOrWhiteSpace(address.RecipientName) || address.RecipientName.Length > 120)
+            throw new BadRequestException("Recipient name is required and cannot exceed 120 characters.");
+        if (string.IsNullOrWhiteSpace(address.Phone) || address.Phone.Length > 20)
+            throw new BadRequestException("Phone is required and cannot exceed 20 characters.");
+        if (string.IsNullOrWhiteSpace(address.AddressText) || address.AddressText.Length > 500)
+            throw new BadRequestException("Address is required and cannot exceed 500 characters.");
+        if (string.IsNullOrWhiteSpace(address.CountryCode) || address.CountryCode.Length != 2)
+            throw new BadRequestException("Country code must contain exactly two characters.");
+        if (address.Province?.Length > 100 || address.City?.Length > 100 || address.District?.Length > 100)
+            throw new BadRequestException("Province, city and district cannot exceed 100 characters.");
+        if (address.PostalCode?.Length > 20)
+            throw new BadRequestException("Postal code cannot exceed 20 characters.");
+        if (!string.Equals(dto.ShippingMethod, "Standard", StringComparison.OrdinalIgnoreCase))
+            throw new BadRequestException("Unsupported shipping method.");
+    }
         
     public async Task<OrderDto> ProcessPaymentSuccessAsync(
-    string checkoutIntentUuid, 
-    string stripePaymentIntentId, 
-    CancellationToken cancellationToken = default)
+        string checkoutIntentUuid,
+        string stripePaymentIntentId,
+        CancellationToken cancellationToken = default)
     {
-        // 步骤1: 验证并查找 Intent
-        //Guid.TryParse(string, out Guid): 尝试把字符串转换成 Guid。
-        //    成功 → 返回 true，并把结果赋值给 out参数
-        //    失败 → 返回 false
         if (!Guid.TryParse(checkoutIntentUuid, out var uuid))
             throw new BadRequestException("Invalid UUID");
-        var intent = await _checkoutIntentRepository.GetByUuidAsync(uuid, cancellationToken);
-        if (intent == null)
-            throw new NotFoundException("Checkout intent not found");
+        if (string.IsNullOrWhiteSpace(stripePaymentIntentId))
+            throw new BadRequestException("Stripe PaymentIntent ID is required.");
 
-        if (intent.CompletedOrderId.HasValue)
-            throw new BadRequestException("Order already processed, cannot duplicate");
-        // 步骤2: 创建 Order
-        var order = new Order
+        return await _transactionRunner.ExecuteAsync(async transactionToken =>
         {
-            Uuid = Guid.NewGuid(),
-            OrderNumber = GenerateOrderNumber(),
-            UserId = intent.UserId,
-            Email = intent.User.Email,
-            ShippingAddress = intent.ShippingAddress!,
-            BillingAddress = intent.BillingAddress,
-            SubtotalCents = intent.SubtotalCents,
-            ShippingFeeCents = intent.ShippingFeeCents,
-            TaxCents = intent.TaxCents,
-            GrandTotalCents = intent.GrandTotalCents,
-            Currency = intent.Currency,
-            Status = OrderStatus.Paid,
-            StripePaymentIntentId = stripePaymentIntentId,
-            PaidAt = DateTime.UtcNow
-        };
-        // 步骤3: 从快照创建 OrderItems
-        var cartItemDtos = JsonSerializer.Deserialize<List<CartItemDto>>(intent.SelectedItems);
-        if (cartItemDtos != null)
-        {
-            foreach (var item in cartItemDtos)
+            // FOR UPDATE makes concurrent webhook deliveries for this checkout wait here.
+            var intent = await _checkoutIntentRepository.GetByUuidForUpdateAsync(uuid, transactionToken);
+            if (intent == null)
+                throw new NotFoundException("Checkout intent not found");
+
+            // Stripe may deliver the same event more than once. Replays are successful no-ops.
+            if (intent.CompletedOrderId.HasValue)
+            {
+                var existingOrder = await _orderRepository.GetByIdAsync(
+                    intent.CompletedOrderId.Value,
+                    transactionToken);
+                if (existingOrder == null)
+                    throw new InvalidOperationException("Completed checkout references a missing order.");
+                if (!string.Equals(existingOrder.StripePaymentIntentId, stripePaymentIntentId, StringComparison.Ordinal))
+                    throw new InvalidOperationException("Checkout was completed by a different Stripe payment.");
+
+                return existingOrder.ToDto();
+            }
+
+            var snapshotItems = JsonSerializer.Deserialize<List<CartItemDto>>(intent.SelectedItems)
+                ?? throw new InvalidOperationException("Checkout snapshot is invalid.");
+            if (snapshotItems.Count == 0 || snapshotItems.Any(item => item.ProductId <= 0 || item.Quantity <= 0))
+                throw new InvalidOperationException("Checkout snapshot does not contain valid items.");
+
+            var purchasedQuantityTotals = snapshotItems
+                .GroupBy(item => item.ProductId)
+                .ToDictionary(group => group.Key, group => group.Sum(item => (long)item.Quantity));
+            if (purchasedQuantityTotals.Any(item => item.Value <= 0 || item.Value > int.MaxValue))
+                throw new InvalidOperationException("Checkout snapshot contains an invalid aggregate quantity.");
+            var purchasedQuantities = purchasedQuantityTotals
+                .ToDictionary(item => item.Key, item => (int)item.Value);
+
+            var stockDecreased = await _productRepository.TryDecreaseStockAsync(
+                purchasedQuantities,
+                transactionToken);
+            if (!stockDecreased)
+                throw new InvalidOperationException(
+                    "Paid checkout could not be fulfilled because product availability changed.");
+
+            var paidAt = DateTime.UtcNow;
+            var order = new Order
+            {
+                Uuid = Guid.NewGuid(),
+                OrderNumber = GenerateOrderNumber(),
+                UserId = intent.UserId,
+                Email = intent.User.Email,
+                ShippingAddress = intent.ShippingAddress!,
+                BillingAddress = intent.BillingAddress,
+                SubtotalCents = intent.SubtotalCents,
+                ShippingFeeCents = intent.ShippingFeeCents,
+                TaxCents = intent.TaxCents,
+                GrandTotalCents = intent.GrandTotalCents,
+                Currency = intent.Currency,
+                Status = OrderStatus.Paid,
+                StripePaymentIntentId = stripePaymentIntentId,
+                PaidAt = paidAt
+            };
+
+            foreach (var item in snapshotItems)
             {
                 order.OrderItems.Add(new OrderItem
                 {
@@ -268,35 +348,34 @@ public class OrderService : IOrderService
                     ProductSku = "SNAPSHOT",
                     ProductSlug = item.ProductSlug,
                     ImageUrl = item.MainImageUrl,
-                    UnitPriceCents = (int)(item.Price * 100),
+                    UnitPriceCents = decimal.ToInt32(item.Price * 100),
                     Quantity = item.Quantity,
-                    LineTotalCents = (int)(item.Subtotal * 100),
+                    LineTotalCents = decimal.ToInt32(item.Subtotal * 100),
                     Currency = item.Currency
                 });
             }
-        }
 
-        // 步骤4: 创建 Payment 记录
-        var payment = new Payment
-        {
-            Uuid = Guid.NewGuid(),
-            PaymentMethod = PaymentMethod.Stripe,
-            TransactionId = stripePaymentIntentId,
-            AmountCents = intent.GrandTotalCents,
-            Currency = intent.Currency,
-            Status = PaymentStatus.Completed,
-            PaidAt = DateTime.UtcNow,
-            Order = order
-        };
-        order.Payment = payment;
-        // 步骤5: 保存 Order
-        await _orderRepository.CreateAsync(order, cancellationToken);
-        // 步骤6: 更新 Intent
-        intent.CompletedOrder = order;
-        await _checkoutIntentRepository.UpdateAsync(intent, cancellationToken);
-        // 步骤7: 清空购物车
-        await _cartRepository.ClearUserCartAsync(intent.UserId, cancellationToken);
-        return order.ToDto();
+            order.Payment = new Payment
+            {
+                Uuid = Guid.NewGuid(),
+                PaymentMethod = PaymentMethod.Stripe,
+                TransactionId = stripePaymentIntentId,
+                AmountCents = intent.GrandTotalCents,
+                Currency = intent.Currency,
+                Status = PaymentStatus.Completed,
+                PaidAt = paidAt,
+                Order = order
+            };
 
+            await _orderRepository.CreateAsync(order, transactionToken);
+            intent.CompletedOrder = order;
+            await _checkoutIntentRepository.UpdateAsync(intent, transactionToken);
+            await _cartRepository.RemovePurchasedQuantitiesAsync(
+                intent.UserId,
+                purchasedQuantities,
+                transactionToken);
+
+            return order.ToDto();
+        }, cancellationToken);
     }
 }

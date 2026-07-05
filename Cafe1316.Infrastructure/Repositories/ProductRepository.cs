@@ -153,10 +153,13 @@ public class ProductRepository : IProductRepository
         // 第 4 步：应用排序
         query = filterParams.SortBy switch
         {
-            ProductSortOption.PriceLowToHigh => query.OrderBy(p=>p.PriceCents),
-            ProductSortOption.PriceHighToLow => query.OrderByDescending(p=>p.PriceCents),
+            ProductSortOption.PriceLowToHigh => query.OrderBy(p=>p.PriceCents)
+                .ThenBy(p => p.Id),
+            ProductSortOption.PriceHighToLow => query.OrderByDescending(p=>p.PriceCents)
+                .ThenBy(p => p.Id),
             _ => query.OrderByDescending(p => p.IsFeatured)//先排精选
                 .ThenByDescending(p => p.CreatedAt)//再排创建时间
+                .ThenBy(p => p.Id)
         };
 
         // 第 5 步：应用分页
@@ -183,8 +186,33 @@ public class ProductRepository : IProductRepository
             .Include(p=>p.FlavorNotes)
             .Where(p=>p.IsFeatured==true && p.IsActive==true)// 只查询激活且精选的产品
             .OrderByDescending(p => p.CreatedAt) // 按创建时间排序（最新的在前）
+            .ThenBy(p => p.Id)
             .Take(limit)  // 限制数量
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> TryDecreaseStockAsync(
+        IReadOnlyDictionary<int, int> quantities,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var (productId, quantity) in quantities)
+        {
+            var affectedRows = await _context.Database.ExecuteSqlInterpolatedAsync($$"""
+                UPDATE products
+                SET "Stock" = "Stock" - {{quantity}},
+                    "UpdatedAt" = {{DateTime.UtcNow}}
+                WHERE "Id" = {{productId}}
+                  AND "IsActive" = TRUE
+                  AND "Stock" >= {{quantity}};
+                """, cancellationToken);
+
+            if (affectedRows != 1)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
 }

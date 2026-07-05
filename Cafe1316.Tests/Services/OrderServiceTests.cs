@@ -18,6 +18,8 @@ public class OrderServiceTests
     private readonly Mock<IOrderRepository>          _orderRepoMock          = new();
     private readonly Mock<ICartRepository>           _cartRepoMock           = new();
     private readonly Mock<ICheckoutIntentRepository> _intentRepoMock         = new();
+    private readonly Mock<IProductRepository>         _productRepoMock        = new();
+    private readonly Mock<ITransactionRunner>         _transactionRunnerMock  = new();
     private readonly Mock<IPaymentService>           _paymentServiceMock     = new();
     private readonly OrderService                    _sut;
 
@@ -39,8 +41,22 @@ public class OrderServiceTests
             _orderRepoMock.Object,
             _cartRepoMock.Object,
             _intentRepoMock.Object,
+            _productRepoMock.Object,
+            _transactionRunnerMock.Object,
             _paymentServiceMock.Object,
             stripeOptions);
+
+        _transactionRunnerMock
+            .Setup(r => r.ExecuteAsync(
+                It.IsAny<Func<CancellationToken, Task<OrderDto>>>(),
+                It.IsAny<CancellationToken>()))
+            .Returns((Func<CancellationToken, Task<OrderDto>> operation, CancellationToken token) => operation(token));
+
+        _productRepoMock
+            .Setup(r => r.TryDecreaseStockAsync(
+                It.IsAny<IReadOnlyDictionary<int, int>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
     }
 
     // ── Helper: build a minimal CheckoutIntent with User nav-prop loaded ──────
@@ -93,17 +109,52 @@ public class OrderServiceTests
         };
     }
 
+    private static CreateCheckoutIntentDto MakeCheckoutRequest() => new()
+    {
+        ShippingMethod = "Standard",
+        ShippingAddress = new OrderAddressDto
+        {
+            RecipientName = "Test User",
+            Phone = "0400000000",
+            Province = "VIC",
+            City = "Melbourne",
+            District = "CBD",
+            AddressText = "123 Test Street",
+            PostalCode = "3000",
+            CountryCode = "AU"
+        }
+    };
+
+    private static CartItem MakeCartItem(bool isActive = true, int stock = 5, int quantity = 2) => new()
+    {
+        Id = 1,
+        UserId = TestUserId,
+        ProductId = 10,
+        Quantity = quantity,
+        Product = new Product
+        {
+            Id = 10,
+            Name = "Ethiopia Yirgacheffe",
+            Slug = "ethiopia-yirgacheffe",
+            Sku = "ETH-001",
+            PriceCents = 3000,
+            Currency = "AUD",
+            Stock = stock,
+            IsActive = isActive
+        }
+    };
+
     // ========================================================================
     // Branch 1: Happy path — creates order, updates intent, clears cart
     // ========================================================================
     [Fact]
-    public async Task ProcessPaymentSuccessAsync_ValidIntent_CreatesOrderAndClearsCart()
+    public async Task ProcessPaymentSuccessAsync_ValidIntent_CreatesOrderAndRemovesPurchasedQuantities()
     {
         // ARRANGE
         var intent = MakeCheckoutIntent(TestIntentUuid, completedOrderId: null);
 
         _intentRepoMock
-            .Setup(r => r.GetByUuidAsync(TestIntentUuid, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByUuidForUpdateAsync(TestIntentUuid, It.IsAny<CancellationToken>()))
             .ReturnsAsync(intent);
 
         // orderRepo.CreateAsync returns the order with an Id
@@ -121,7 +172,10 @@ public class OrderServiceTests
             .Returns(Task.CompletedTask);
 
         _cartRepoMock
-            .Setup(r => r.ClearUserCartAsync(TestUserId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.RemovePurchasedQuantitiesAsync(
+                TestUserId,
+                It.IsAny<IReadOnlyDictionary<int, int>>(),
+                It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // ACT
@@ -149,11 +203,14 @@ public class OrderServiceTests
             Times.Once,
             "Intent UpdateAsync should be called to mark it as completed");
 
-        // ASSERT — cart was cleared
+        // ASSERT — only quantities from this checkout snapshot are removed
         _cartRepoMock.Verify(
-            r => r.ClearUserCartAsync(TestUserId, It.IsAny<CancellationToken>()),
+            r => r.RemovePurchasedQuantitiesAsync(
+                TestUserId,
+                It.Is<IReadOnlyDictionary<int, int>>(items => items[10] == 2),
+                It.IsAny<CancellationToken>()),
             Times.Once,
-            "Cart should be cleared after order is created");
+            "Only purchased quantities should be removed after order creation");
 
         // ASSERT — returned DTO has correct status
         result.Should().NotBeNull();
@@ -164,23 +221,41 @@ public class OrderServiceTests
     // Branch 2: Idempotency guard — intent already has a CompletedOrderId
     // ========================================================================
     [Fact]
-    public async Task ProcessPaymentSuccessAsync_AlreadyProcessed_ThrowsBadRequestException()
+    public async Task ProcessPaymentSuccessAsync_AlreadyProcessed_ReturnsExistingOrder()
     {
         // ARRANGE — intent already has CompletedOrderId = 42 (already processed)
         var intent = MakeCheckoutIntent(TestIntentUuid, completedOrderId: 42);
 
         _intentRepoMock
-            .Setup(r => r.GetByUuidAsync(TestIntentUuid, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByUuidForUpdateAsync(TestIntentUuid, It.IsAny<CancellationToken>()))
             .ReturnsAsync(intent);
 
-        // ACT
-        Func<Task> act = () => _sut.ProcessPaymentSuccessAsync(
+        var existingOrder = new Order
+        {
+            Id = 42,
+            UserId = TestUserId,
+            OrderNumber = "ORD-EXISTING",
+            Email = "test@cafe1316.com",
+            ShippingAddress = JsonSerializer.Serialize(new OrderAddressDto
+            {
+                RecipientName = "Test User",
+                Phone = "0400000000",
+                AddressText = "123 Test St",
+                CountryCode = "AU"
+            }),
+            Currency = "AUD",
+            StripePaymentIntentId = FakePaymentIntentId,
+            Status = OrderStatus.Paid
+        };
+        _orderRepoMock
+            .Setup(r => r.GetByIdAsync(42, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingOrder);
+
+        var result = await _sut.ProcessPaymentSuccessAsync(
             TestIntentUuid.ToString(),
             FakePaymentIntentId);
 
-        // ASSERT — idempotency guard fires
-        await act.Should().ThrowAsync<BadRequestException>()
-            .WithMessage("*already processed*");
+        result.Id.Should().Be(42);
 
         // ASSERT — no order was created, no cart was cleared
         _orderRepoMock.Verify(
@@ -189,7 +264,10 @@ public class OrderServiceTests
             "CreateAsync must NOT be called when order is already processed");
 
         _cartRepoMock.Verify(
-            r => r.ClearUserCartAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            r => r.RemovePurchasedQuantitiesAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<IReadOnlyDictionary<int, int>>(),
+                It.IsAny<CancellationToken>()),
             Times.Never,
             "ClearUserCartAsync must NOT be called for a duplicate webhook");
     }
@@ -202,7 +280,7 @@ public class OrderServiceTests
     {
         // ARRANGE — repo returns null for any UUID
         _intentRepoMock
-            .Setup(r => r.GetByUuidAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByUuidForUpdateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((CheckoutIntent?)null);
 
         var randomUuid = Guid.NewGuid().ToString();
@@ -227,5 +305,103 @@ public class OrderServiceTests
         // ASSERT
         await act.Should().ThrowAsync<BadRequestException>()
             .WithMessage("*Invalid UUID*");
+    }
+
+    [Fact]
+    public async Task CreateCheckoutIntentAsync_AvailableCart_UsesServerCalculatedAmount()
+    {
+        _cartRepoMock
+            .Setup(r => r.GetUserCartItemsAsync(TestUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<CartItem> { MakeCartItem() });
+        _paymentServiceMock
+            .Setup(s => s.CreatePaymentIntentAsync(
+                7600,
+                "aud",
+                It.Is<Dictionary<string, string>>(metadata => metadata.ContainsKey("checkout_intent_uuid")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync("client_secret_test");
+        _intentRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<CheckoutIntent>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CheckoutIntent intent, CancellationToken _) => intent);
+
+        var result = await _sut.CreateCheckoutIntentAsync(TestUserId, MakeCheckoutRequest());
+
+        result.SubtotalCents.Should().Be(6000);
+        result.GrandTotalCents.Should().Be(7600);
+        result.ClientSecret.Should().Be("client_secret_test");
+    }
+
+    [Fact]
+    public async Task CreateCheckoutIntentAsync_InsufficientStock_RejectsBeforeStripeCall()
+    {
+        _cartRepoMock
+            .Setup(r => r.GetUserCartItemsAsync(TestUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<CartItem> { MakeCartItem(stock: 1, quantity: 2) });
+
+        Func<Task> act = () => _sut.CreateCheckoutIntentAsync(TestUserId, MakeCheckoutRequest());
+
+        await act.Should().ThrowAsync<BadRequestException>()
+            .WithMessage("*enough stock*");
+        _paymentServiceMock.Verify(
+            s => s.CreatePaymentIntentAsync(
+                It.IsAny<int>(),
+                It.IsAny<string>(),
+                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateCheckoutIntentAsync_InvalidAddress_RejectsBeforeLoadingCart()
+    {
+        var request = MakeCheckoutRequest();
+        request.ShippingAddress.RecipientName = "";
+
+        Func<Task> act = () => _sut.CreateCheckoutIntentAsync(TestUserId, request);
+
+        await act.Should().ThrowAsync<BadRequestException>()
+            .WithMessage("*Recipient name*");
+        _cartRepoMock.Verify(
+            r => r.GetUserCartItemsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessPaymentSuccessAsync_StockChanged_DoesNotCreateOrder()
+    {
+        var intent = MakeCheckoutIntent(TestIntentUuid);
+        _intentRepoMock
+            .Setup(r => r.GetByUuidForUpdateAsync(TestIntentUuid, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(intent);
+        _productRepoMock
+            .Setup(r => r.TryDecreaseStockAsync(
+                It.IsAny<IReadOnlyDictionary<int, int>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        Func<Task> act = () => _sut.ProcessPaymentSuccessAsync(
+            TestIntentUuid.ToString(),
+            FakePaymentIntentId);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*availability changed*");
+        _orderRepoMock.Verify(
+            r => r.CreateAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Theory]
+    [InlineData(0, 10)]
+    [InlineData(1, 0)]
+    [InlineData(1, 101)]
+    public async Task GetUserOrdersAsync_InvalidPagination_Rejects(int page, int pageSize)
+    {
+        Func<Task> act = () => _sut.GetUserOrdersAsync(
+            TestUserId,
+            page,
+            pageSize,
+            null);
+
+        await act.Should().ThrowAsync<BadRequestException>();
     }
 }
