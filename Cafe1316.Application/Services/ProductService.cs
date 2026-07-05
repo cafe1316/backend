@@ -1,6 +1,7 @@
 using Cafe1316.Application.DTOs;
 using Cafe1316.Application.Interfaces;
 using Cafe1316.Application.Mappings;
+using Cafe1316.Domain.Exceptions;
 
 namespace Cafe1316.Application.Services;
 
@@ -18,6 +19,8 @@ public class ProductService : IProductService
         ProductFilterParams filterParams,
         CancellationToken cancellationToken = default)
     {
+        ValidateFilterParams(filterParams);
+
         var (products, totalCount) = await _productRepository.GetProductsAsync(filterParams, cancellationToken);
 
         return (products, totalCount).ToPaginatedResult(filterParams.Page, filterParams.PageSize);
@@ -45,8 +48,43 @@ public class ProductService : IProductService
     public async Task<List<ProductListDto>> GetFeaturedProductsAsync(
         int limit = 10, CancellationToken cancellationToken = default)
     {
+        if (limit is < 1 or > 50)
+        {
+            throw new BadRequestException("Featured product limit must be between 1 and 50.");
+        }
+
         var products = await _productRepository.GetFeaturedProductsAsync(limit, cancellationToken);
         
         return products.Select(p => p.ToListDto()).ToList();
+    }
+
+    private static void ValidateFilterParams(ProductFilterParams filterParams)
+    {
+        if (filterParams.Page < 1)
+        {
+            throw new BadRequestException("Page must be at least 1.");
+        }
+
+        if (filterParams.PageSize is < 1 or > 100)
+        {
+            throw new BadRequestException("Page size must be between 1 and 100.");
+        }
+
+        if (filterParams.MinPrice < 0 || filterParams.MaxPrice < 0)
+        {
+            throw new BadRequestException("Price filters cannot be negative.");
+        }
+
+        if (filterParams.MinPrice.HasValue &&
+            filterParams.MaxPrice.HasValue &&
+            filterParams.MinPrice > filterParams.MaxPrice)
+        {
+            throw new BadRequestException("Minimum price cannot be greater than maximum price.");
+        }
+
+        if (filterParams.SearchTerm?.Length > 100)
+        {
+            throw new BadRequestException("Search term cannot exceed 100 characters.");
+        }
     }
 }

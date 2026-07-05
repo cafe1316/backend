@@ -8,4 +8,5 @@ public class CartDto
     public int TotalItems { get; set; } = 0;
     public decimal TotalAmount { get; set; } = 0;
     public string Currency { get; set; } = "AUD";
+    public bool HasUnavailableItems { get; set; }
 }

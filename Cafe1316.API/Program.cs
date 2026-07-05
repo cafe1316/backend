@@ -125,7 +125,28 @@ builder.Services
         settings => settings.ExpiryMinutes is > 0 and <= 1440,
         "JwtSettings:ExpiryMinutes must be between 1 and 1440 minutes.")
     .ValidateOnStart();
-builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
+builder.Services
+    .AddOptions<StripeSettings>()
+    .Bind(builder.Configuration.GetSection("Stripe"))
+    .Validate(
+        settings =>
+            !string.IsNullOrWhiteSpace(settings.SecretKey) &&
+            settings.SecretKey.StartsWith("sk_", StringComparison.Ordinal) &&
+            !settings.SecretKey.Contains("Use-User-Secrets", StringComparison.OrdinalIgnoreCase),
+        "Stripe:SecretKey must be configured with a Stripe secret key.")
+    .Validate(
+        settings =>
+            !string.IsNullOrWhiteSpace(settings.PublishableKey) &&
+            settings.PublishableKey.StartsWith("pk_", StringComparison.Ordinal) &&
+            !settings.PublishableKey.Contains("Use-User-Secrets", StringComparison.OrdinalIgnoreCase),
+        "Stripe:PublishableKey must be configured with a Stripe publishable key.")
+    .Validate(
+        settings =>
+            !string.IsNullOrWhiteSpace(settings.WebhookSecret) &&
+            settings.WebhookSecret.StartsWith("whsec_", StringComparison.Ordinal) &&
+            !settings.WebhookSecret.Contains("Use-User-Secrets", StringComparison.OrdinalIgnoreCase),
+        "Stripe:WebhookSecret must be configured with a Stripe webhook signing secret.")
+    .ValidateOnStart();
 
 // 配置 JWT 认证
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()

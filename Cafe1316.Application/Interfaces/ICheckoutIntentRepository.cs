@@ -19,6 +19,8 @@ public interface ICheckoutIntentRepository
     ///<summary>   
     Task<CheckoutIntent?> GetByUuidAsync(Guid uuid, CancellationToken cancellationToken = default);
 
+    Task<CheckoutIntent?> GetByUuidForUpdateAsync(Guid uuid, CancellationToken cancellationToken = default);
+
     ///<summary>
     ///作用: 支付成功后，把 checkoutIntent.CompletedOrderId 字段填上。
     ///场景: 订单生成后，把这个 Intent 标记为"已完成"，防止重复处理。

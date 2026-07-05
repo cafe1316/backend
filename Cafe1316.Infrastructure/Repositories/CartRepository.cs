@@ -22,6 +22,35 @@ public class CartRepository : ICartRepository
             .FirstOrDefaultAsync(ci => ci.UserId == userId && ci.ProductId == productId, cancellationToken);
     }
 
+    public async Task<bool> TryAddQuantityAsync(
+        Guid userId,
+        int productId,
+        int quantity,
+        int maxQuantity,
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var affectedRows = await _context.Database.ExecuteSqlInterpolatedAsync($$"""
+            INSERT INTO cart_items ("UserId", "ProductId", "Quantity", "AddedAt", "CreatedAt", "UpdatedAt")
+            SELECT {{userId}}, p."Id", {{quantity}}, {{now}}, {{now}}, {{now}}
+            FROM products AS p
+            WHERE p."Id" = {{productId}}
+              AND p."IsActive" = TRUE
+              AND p."Stock" >= {{quantity}}
+            ON CONFLICT ("UserId", "ProductId") DO UPDATE
+            SET "Quantity" = cart_items."Quantity" + EXCLUDED."Quantity",
+                "UpdatedAt" = {{now}}
+            WHERE cart_items."Quantity" <= {{maxQuantity}} - EXCLUDED."Quantity"
+              AND cart_items."Quantity" <= (
+                  SELECT p2."Stock"
+                  FROM products AS p2
+                  WHERE p2."Id" = {{productId}} AND p2."IsActive" = TRUE
+              ) - EXCLUDED."Quantity";
+            """, cancellationToken);
+
+        return affectedRows == 1;
+    }
+
     public async Task<CartItem?> GetByIdAsync(int cartItemId, CancellationToken cancellationToken = default)
     {
         return await _context.CartItems
@@ -38,13 +67,6 @@ public class CartRepository : ICartRepository
             .Where(ci => ci.UserId == userId)
             .OrderByDescending(ci => ci.CreatedAt)
             .ToListAsync(cancellationToken);
-    }
-
-    public async Task<CartItem> AddAsync(CartItem cartItem, CancellationToken cancellationToken = default)
-    {
-        await _context.CartItems.AddAsync(cartItem, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
-        return cartItem;
     }
 
     public async Task UpdateAsync(CartItem cartItem, CancellationToken cancellationToken = default)
@@ -66,5 +88,28 @@ public class CartRepository : ICartRepository
             .ToListAsync(cancellationToken);
         _context.CartItems.RemoveRange(items);
         await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemovePurchasedQuantitiesAsync(
+        Guid userId,
+        IReadOnlyDictionary<int, int> purchasedQuantities,
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        foreach (var (productId, purchasedQuantity) in purchasedQuantities)
+        {
+            await _context.Database.ExecuteSqlInterpolatedAsync($$"""
+                DELETE FROM cart_items
+                WHERE "UserId" = {{userId}}
+                  AND "ProductId" = {{productId}}
+                  AND "Quantity" <= {{purchasedQuantity}};
+
+                UPDATE cart_items
+                SET "Quantity" = "Quantity" - {{purchasedQuantity}}, "UpdatedAt" = {{now}}
+                WHERE "UserId" = {{userId}}
+                  AND "ProductId" = {{productId}}
+                  AND "Quantity" > {{purchasedQuantity}};
+                """, cancellationToken);
+        }
     }
 }

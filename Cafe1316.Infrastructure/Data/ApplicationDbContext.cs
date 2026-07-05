@@ -290,7 +290,10 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<CartItem>(entity =>
         {
-            entity.ToTable("cart_items");
+            entity.ToTable("cart_items", table =>
+                table.HasCheckConstraint(
+                    "CK_cart_items_Quantity_Range",
+                    "\"Quantity\" >= 1 AND \"Quantity\" <= 99"));
             entity.HasKey(entity => entity.Id);
             entity.Property(entity => entity.UserId); 
             entity.Property(entity => entity.ProductId);
@@ -361,6 +364,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(entity => entity.Notes);
             entity.HasIndex(entity => entity.Uuid).IsUnique();
             entity.HasIndex(entity => entity.OrderNumber).IsUnique();
+            entity.HasIndex(entity => entity.StripePaymentIntentId).IsUnique();
             entity.HasIndex(entity => entity.Status);
             entity.HasIndex(entity => entity.CreatedAt);
             entity.HasIndex(entity => entity.UserId);
@@ -408,6 +412,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(entity => entity.PaidAt);
             entity.HasIndex(entity => entity.Uuid).IsUnique();
             entity.HasIndex(entity => entity.OrderId).IsUnique();
+            entity.HasIndex(entity => entity.TransactionId).IsUnique();
             entity.HasIndex(entity => entity.Status);
         });
 

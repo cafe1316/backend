@@ -164,7 +164,10 @@ namespace Cafe1316.Infrastructure.Data.Migrations
                     b.HasIndex("UserId", "ProductId")
                         .IsUnique();
 
-                    b.ToTable("cart_items", (string)null);
+                    b.ToTable("cart_items", t =>
+                        {
+                            t.HasCheckConstraint("CK_cart_items_Quantity_Range", "\"Quantity\" >= 1 AND \"Quantity\" <= 99");
+                        });
                 });
 
             modelBuilder.Entity("Cafe1316.Domain.Entities.Category", b =>
@@ -373,6 +376,9 @@ namespace Cafe1316.Infrastructure.Data.Migrations
                     b.HasIndex("OrderNumber")
                         .IsUnique();
 
+                    b.HasIndex("StripePaymentIntentId")
+                        .IsUnique();
+
                     b.HasIndex("Status");
 
                     b.HasIndex("UserId");
@@ -489,6 +495,9 @@ namespace Cafe1316.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OrderId")
+                        .IsUnique();
+
+                    b.HasIndex("TransactionId")
                         .IsUnique();
 
                     b.HasIndex("Status");

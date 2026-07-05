@@ -42,6 +42,28 @@ public class CheckoutIntentRepository : ICheckoutIntentRepository
             .FirstOrDefaultAsync(c => c.Uuid == uuid, cancellationToken);
     }
 
+    public async Task<CheckoutIntent?> GetByUuidForUpdateAsync(
+        Guid uuid,
+        CancellationToken cancellationToken = default)
+    {
+        var checkoutIntent = await _context.CheckoutIntents
+            .FromSqlInterpolated($$"""
+                SELECT * FROM checkout_intents
+                WHERE "Uuid" = {{uuid}}
+                FOR UPDATE
+                """)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (checkoutIntent != null)
+        {
+            await _context.Entry(checkoutIntent)
+                .Reference(c => c.User)
+                .LoadAsync(cancellationToken);
+        }
+
+        return checkoutIntent;
+    }
+
     public async Task UpdateAsync(CheckoutIntent checkoutIntent, CancellationToken cancellationToken = default)
     {
         //告诉 EF Core："这个实体被修改了，你去生成 UPDATE 语句吧。"
