@@ -1,3 +1,4 @@
+using Amazon.Lambda.AspNetCoreServer.Hosting;
 using Cafe1316.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Cafe1316.Application.Services;
@@ -8,75 +9,70 @@ using Cafe1316.Infrastructure.Transactions;
 using Cafe1316.API.Middleware;
 using Cafe1316.Application.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// In Lambda, load application secrets from a namespaced SSM Parameter Store path.
+// This is skipped locally, where user-secrets or environment variables are used.
+var systemsManagerPath = builder.Configuration["CONFIGURATION_SSM_PATH"];
+if (!string.IsNullOrWhiteSpace(systemsManagerPath))
+{
+    builder.Configuration.AddSystemsManager(systemsManagerPath);
+}
+
 // ===== 配置服务（Services） =====
 
-// 配置数据库
-// 配置数据库
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// Configure PostgreSQL from either ASP.NET Core configuration or a platform DATABASE_URL.
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    var connectionString = builder.Configuration["DATABASE_URL"]
+        ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+    if (string.IsNullOrWhiteSpace(connectionString))
     {
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-        var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+        throw new InvalidOperationException(
+            "A PostgreSQL connection must be provided through DATABASE_URL or ConnectionStrings:DefaultConnection.");
+    }
 
-        // 优先使用 Render/Heroku 提供的 DATABASE_URL
-        if (!string.IsNullOrEmpty(databaseUrl))
-        {
-            connectionString = databaseUrl;
-            Console.WriteLine("--> Using DATABASE_URL from environment.");
-        }
-        else 
-        {
-             Console.WriteLine("--> Using DefaultConnection from appsettings.");
-        }
+    connectionString = connectionString.Trim();
 
-        // DEBUG: 打印连接字符串开头（不泄露密码）用于调试
-        if (!string.IsNullOrEmpty(connectionString)) {
-            var displayStr = connectionString.Length > 15 ? connectionString.Substring(0, 15) + "..." : connectionString;
-            Console.WriteLine($"--> Raw ConnectionString Start: '{displayStr}'");
-        }
-
-        // 预处理：去除前后空格
-        if (!string.IsNullOrEmpty(connectionString))
+    // Render-style PostgreSQL URLs need conversion to the Npgsql key/value format.
+    if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+        connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+    {
+        try
         {
-            connectionString = connectionString.Trim();
-        }
+            var databaseUri = new Uri(connectionString);
+            var userInfo = databaseUri.UserInfo.Split(new[] { ':' }, 2);
 
-        // 如果是 URI 格式 (postgres:// 或 postgresql://)，需要转换
-        if (!string.IsNullOrEmpty(connectionString) && 
-           (connectionString.StartsWith("postgres://") || connectionString.StartsWith("postgresql://")))
-        {
-            try 
+            if (userInfo.Length != 2)
             {
-                Console.WriteLine("--> Detected URI format connection string. Parsing to Npgsql format...");
-                var databaseUri = new Uri(connectionString);
-                var userInfo = databaseUri.UserInfo.Split(new[] { ':' }, 2); // 限制分割次数，防止密码中包含冒号
-                
-                var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder
-                {
-                    Host = databaseUri.Host,
-                    Port = databaseUri.Port > 0 ? databaseUri.Port : 5432,
-                    Username = userInfo.Length > 0 ? userInfo[0] : null,
-                    Password = userInfo.Length > 1 ? userInfo[1] : null,
-                    Database = databaseUri.LocalPath.TrimStart('/'),
-                    Pooling = true,
-                    SslMode = Npgsql.SslMode.Prefer 
-                };
-                connectionString = npgsqlBuilder.ToString();
-                Console.WriteLine("--> Successfully parsed URI to Npgsql format.");
+                throw new FormatException("The PostgreSQL URL must include both a username and password.");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"--> Error parsing connection URI: {ex.Message}");
-                Console.WriteLine("--> WARNING: Falling back to raw string. Expect crash if format is invalid.");
-            }
-        }
 
-        options.UseNpgsql(connectionString);
-    });
+            var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder
+            {
+                Host = databaseUri.Host,
+                Port = databaseUri.Port > 0 ? databaseUri.Port : 5432,
+                Username = Uri.UnescapeDataString(userInfo[0]),
+                Password = Uri.UnescapeDataString(userInfo[1]),
+                Database = Uri.UnescapeDataString(databaseUri.LocalPath.TrimStart('/')),
+                Pooling = true,
+                SslMode = Npgsql.SslMode.Require
+            };
+            connectionString = npgsqlBuilder.ToString();
+        }
+        catch (Exception ex) when (ex is UriFormatException or FormatException)
+        {
+            throw new InvalidOperationException("DATABASE_URL is not a valid PostgreSQL URL.", ex);
+        }
+    }
+
+    options.UseNpgsql(connectionString);
+});
 
 // 注册 Repositories
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
@@ -172,20 +168,36 @@ builder.Services.AddAuthentication(options =>
 
 // 注册 Controllers
 builder.Services.AddControllers();
+builder.Services.AddHealthChecks();
 
-// Configure CORS
+// API Gateway sends HTTP API v2 events to Lambda. This adapter converts them
+// into normal ASP.NET Core requests. Outside Lambda it leaves Kestrel unchanged.
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+
+// Configure exact frontend origins. In AWS, override index 0 with
+// Cors__AllowedOrigins__0=https://<branch>.<app-id>.amplifyapp.com.
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()
+    ?.Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Select(origin => origin.TrimEnd('/'))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray()
+    ?? [];
+
+if (allowedOrigins.Length == 0)
+{
+    throw new InvalidOperationException("At least one Cors:AllowedOrigins entry must be configured.");
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-            "https://cafe1316.vercel.app",  // 生產環境
-            "http://localhost:5173",         // 本地 Vite 開發服務器
-            "http://localhost:3000"          // 備用
-        )
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy.WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -219,28 +231,36 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// 4. 数据库 Seed (自动迁移和填充数据)
-// 注意：在生产环境谨慎使用，已在 DbInitializer 中加入检查，防止重复填充
-using (var scope = app.Services.CreateScope())
+// Database changes are explicit in cloud environments. This prevents every
+// scaled container from trying to migrate or seed the same database at startup.
+var applyMigrations = builder.Configuration.GetValue<bool>("DatabaseInitialization:ApplyMigrations");
+var seedDatabase = builder.Configuration.GetValue<bool>("DatabaseInitialization:Seed");
+
+if (applyMigrations || seedDatabase)
 {
+    using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    // 自动应用迁移 (如果用 Postgres)
-    if (!app.Environment.IsDevelopment()) 
+
+    if (applyMigrations)
     {
-        try {
-             await context.Database.MigrateAsync(); 
-        } catch (Exception ex) {
-             Console.WriteLine($"Migration Error: {ex.Message}");
-        }
+        await context.Database.MigrateAsync();
     }
-    
-    // 填充种子数据
-    await DbInitializer.SeedAsync(context);
+
+    if (seedDatabase)
+    {
+        await DbInitializer.SeedAsync(context);
+    }
 }
 
 // 4. 认证和授权（必须在 MapControllers 之前）
 app.UseAuthentication();    // JWT 认证
 app.UseAuthorization();     // 授权
+
+// CI and production smoke tests use this endpoint to verify the API.
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    AllowCachingResponses = false
+});
 
 // 5. 路由和 Controllers（必须在最后）
 app.MapControllers();

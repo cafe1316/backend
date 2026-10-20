@@ -1,0 +1,182 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Cafe1316 Lambda container API, API Gateway HTTP API, and GitHub deployment role
+
+Parameters:
+  FunctionName:
+    Type: String
+    Default: cafe1316-api
+  ImageUri:
+    Type: String
+    Description: Initial ECR image URI including an immutable tag
+  EcrRepositoryArn:
+    Type: String
+  GitHubOidcProviderArn:
+    Type: String
+    Description: ARN of the account-level token.actions.githubusercontent.com OIDC provider
+  GitHubRepository:
+    Type: String
+    Default: cafe1316/backend
+    Description: GitHub repository in owner/name form
+  FrontendOrigin:
+    Type: String
+    Description: Exact Amplify origin without a trailing slash
+  ConfigurationParameterPath:
+    Type: String
+    Default: /cafe1316/production
+    AllowedPattern: '/[A-Za-z0-9_.\-/]+'
+    Description: SSM path containing DATABASE_URL, JwtSettings/Secret and Stripe secrets
+  GoogleClientId:
+    Type: String
+  StripePublishableKey:
+    Type: String
+
+Resources:
+  FunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${FunctionName}"
+      RetentionInDays: 7
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-lambda-execution"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ReadApplicationParameters
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
+                Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${ConfigurationParameterPath}/*"
+
+  ApiFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: FunctionLogGroup
+    Properties:
+      FunctionName: !Ref FunctionName
+      PackageType: Image
+      Architectures:
+        - x86_64
+      Code:
+        ImageUri: !Ref ImageUri
+      Role: !GetAtt LambdaExecutionRole.Arn
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          ASPNETCORE_ENVIRONMENT: Production
+          CONFIGURATION_SSM_PATH: !Ref ConfigurationParameterPath
+          Cors__AllowedOrigins__0: !Ref FrontendOrigin
+          DatabaseInitialization__ApplyMigrations: "false"
+          DatabaseInitialization__Seed: "false"
+          GoogleAuth__ClientId: !Ref GoogleClientId
+          Stripe__PublishableKey: !Ref StripePublishableKey
+
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "${FunctionName}-http-api"
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowCredentials: true
+        AllowHeaders:
+          - Authorization
+          - Content-Type
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - OPTIONS
+        AllowOrigins:
+          - !Ref FrontendOrigin
+
+  LambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ApiFunction.Arn
+      PayloadFormatVersion: "2.0"
+      TimeoutInMillis: 30000
+
+  DefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "$default"
+      Target: !Sub "integrations/${LambdaIntegration}"
+
+  DefaultStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: "$default"
+      AutoDeploy: true
+
+  ApiGatewayInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ApiFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*"
+
+  GitHubDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-github-deploy"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubRepository}:environment:production"
+      Policies:
+        - PolicyName: PushImageAndDeployFunction
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                Resource: !Ref EcrRepositoryArn
+              - Effect: Allow
+                Action:
+                  - lambda:GetFunctionConfiguration
+                  - lambda:UpdateFunctionCode
+                Resource: !GetAtt ApiFunction.Arn
+
+Outputs:
+  FunctionName:
+    Value: !Ref ApiFunction
+  ApiUrl:
+    Value: !GetAtt HttpApi.ApiEndpoint
+  GitHubDeployRoleArn:
+    Value: !GetAtt GitHubDeployRole.Arn

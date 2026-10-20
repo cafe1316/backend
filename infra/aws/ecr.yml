@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Cafe1316 private container registry for the backend API
+
+Parameters:
+  RepositoryName:
+    Type: String
+    Default: cafe1316-api
+    AllowedPattern: "[a-z0-9]+(?:[._/-][a-z0-9]+)*"
+
+Resources:
+  ApiRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: MUTABLE
+      EncryptionConfiguration:
+        EncryptionType: AES256
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowLambdaToPullImages
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - ecr:BatchGetImage
+              - ecr:GetDownloadUrlForLayer
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Remove untagged images after one day",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 1
+                },
+                "action": { "type": "expire" }
+              },
+              {
+                "rulePriority": 2,
+                "description": "Keep only the six newest release images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 6
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+Outputs:
+  RepositoryName:
+    Value: !Ref ApiRepository
+  RepositoryArn:
+    Value: !GetAtt ApiRepository.Arn
+  RepositoryUri:
+    Value: !GetAtt ApiRepository.RepositoryUri
