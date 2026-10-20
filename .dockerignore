@@ -1,9 +1,12 @@
-**/bin
-**/obj
 .git
+.github
 .vscode
 .vs
 .idea
+**/bin
+**/obj
+Cafe1316.Tests
+infra
 **/*.sh
 **/*.md
 test-*
